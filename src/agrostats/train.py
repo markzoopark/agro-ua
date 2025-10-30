@@ -546,16 +546,36 @@ def poltava_command(features_path: Path = typer.Option(FEATURES_PATH, exists=Tru
     metrics_export.to_csv(METRICS_PATH, index=False)
     console.print(f"[green]Метрики збережено в {METRICS_PATH}[/green]")
 
-    summary_input = metrics_df.replace([np.inf, -np.inf], np.nan)
-    summary = (
-        summary_input[summary_input["split"] == "test"]
-        .groupby(["scenario", "model", "crop"], as_index=False)[["MAE", "MAPE"]]
-        .mean()
-    )
-    summary = summary.rename(columns={"MAE": "mae", "MAPE": "mape"})
+    test_predictions = predictions_export[predictions_export["split"] == "test"].copy()
+    if not test_predictions.empty:
+        test_predictions = test_predictions.replace([np.inf, -np.inf], np.nan).dropna(subset=["y_true", "y_pred"])
+        summary = (
+            test_predictions.groupby(["scenario", "model", "crop"])
+            .apply(
+                lambda g: pd.Series(
+                    {
+                        "mae": float(np.abs(g["y_true"] - g["y_pred"]).mean()),
+                        "rmse": float(np.sqrt(((g["y_true"] - g["y_pred"]) ** 2).mean())),
+                        "mape": float((np.abs((g["y_true"] - g["y_pred"]) / g["y_true"]) * 100).mean()),
+                        "n": int(len(g)),
+                    }
+                ),
+                include_groups=False,
+            )
+            .reset_index()
+        )
+    else:
+        summary = pd.DataFrame(columns=["scenario", "model", "crop", "mae", "rmse", "mape", "n"])
+
     summary_path = REPORTS_DIR / "metrics_by_scenario.csv"
     summary.to_csv(summary_path, index=False)
     console.print(f"[green]Зведення за сценаріями збережено в {summary_path}[/green]")
+
+    if not summary.empty:
+        leaderboard = summary.loc[summary.groupby("crop")["mae"].idxmin()].reset_index(drop=True)
+        leaderboard_path = REPORTS_DIR / "metrics_leaderboard.csv"
+        leaderboard.to_csv(leaderboard_path, index=False)
+        console.print(f"[green]Таблицю лідерів збережено в {leaderboard_path}[/green]")
 
 
 if __name__ == "__main__":
