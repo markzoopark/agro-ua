@@ -1,90 +1,332 @@
-"""Training and backtesting pipelines for agrostats models."""
+"""Model training and evaluation pipeline for agrostats features."""
 
 from __future__ import annotations
 
-import json
+import math
+import re
+import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, List, Literal, Optional, Sequence
+from typing import Dict, Iterable, List, Optional, Tuple
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import shap
 import typer
-from pydantic import BaseModel, Field, validator
 from rich.console import Console
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-from sklearn.model_selection import TimeSeriesSplit, train_test_split
+from sklearn.linear_model import ElasticNet
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
+
+from agrostats import utils
 
 
 console = Console()
-app = typer.Typer(help="Model training and backtesting commands.")
+app = typer.Typer(help="Training and evaluation commands for agrostats features.")
+
+FEATURES_PATH = Path("data/processed/agrostats_poltava_features.parquet")
+METRICS_PATH = Path("reports/metrics.csv")
+FIGURES_DIR = Path("reports/figures")
+
+TARGET_CROPS = ("Пшениця", "Кукурудза", "Соняшник")
+SPLIT_TRAIN_END = 2018
+SPLIT_VAL_END = 2021
+TEST_START = 2022
+RANDOM_STATE = 42
+
+MANUAL_SLUGS = {
+    "Пшениця": "pshenytsia",
+    "Кукурудза": "kukurudza",
+    "Соняшник": "sonyashnyk",
+}
 
 
-ModelName = Literal["xgboost", "lightgbm", "random_forest"]
+@dataclass
+class CropDataset:
+    crop: str
+    years: pd.Series
+    features: pd.DataFrame
+    target: pd.Series
 
 
-class TrainConfig(BaseModel):
-    """Configuration for a single training run."""
-
-    data_path: Path = Field(..., description="Path to the CSV file with training data.")
-    target: str = Field(..., description="Target column name.")
-    features: Sequence[str] = Field(..., description="Feature column names.")
-    model: ModelName = Field("xgboost", description="Model family to train.")
-    date_column: Optional[str] = Field(None, description="Date column for backtesting splits.")
-    test_size: float = Field(0.2, ge=0.05, le=0.5, description="Test set size for holdout split.")
-    n_splits: int = Field(5, ge=2, description="Number of folds for backtesting.")
-    scale_features: bool = Field(True, description="Whether to standardise features.")
-    random_state: int = Field(42, description="Random seed.")
-
-    @validator("features")
-    def _ensure_features_present(cls, value: Sequence[str]) -> Sequence[str]:
-        if not value:
-            raise ValueError("At least one feature must be provided.")
-        return value
+def slugify(value: str) -> str:
+    if value in MANUAL_SLUGS:
+        return MANUAL_SLUGS[value]
+    normalised = unicodedata.normalize("NFKD", value)
+    ascii_value = normalised.encode("ascii", "ignore").decode("ascii")
+    ascii_value = re.sub(r"[^A-Za-z0-9]+", "_", ascii_value)
+    slug = ascii_value.strip("_").lower()
+    if slug:
+        return slug
+    return f"crop_{abs(hash(value)) % 10000}"
 
 
-def load_config(path: Path) -> TrainConfig:
-    """Load configuration from a JSON file."""
-    data = json.loads(path.read_text(encoding="utf-8"))
-    return TrainConfig(**data)
+def classify_split(year: int) -> str:
+    if year <= SPLIT_TRAIN_END:
+        return "train"
+    if year <= SPLIT_VAL_END:
+        return "validation"
+    return "test"
 
 
-def load_dataset(
-    path: Path,
-    features: Sequence[str],
-    target: str,
-    *,
-    date_column: Optional[str] = None,
-) -> tuple[pd.DataFrame, pd.Series]:
-    """Load dataset and split into features/target."""
-    df = pd.read_csv(path)
-    missing_columns = set(features) | {target} - set(df.columns)
-    if missing_columns:
-        raise ValueError(f"Missing columns in dataset: {sorted(missing_columns)}")
-    X = df.loc[:, features].copy()
-    if date_column and date_column in X.columns:
-        X[date_column] = pd.to_datetime(X[date_column])
-    y = df[target].copy()
-    return X, y
+def load_features(path: Path = FEATURES_PATH) -> pd.DataFrame:
+    if not path.exists():
+        raise FileNotFoundError(f"Не найден файл с признаками: {path}. Сначала выполните генерацию фич.")
+    df = pd.read_parquet(path)
+    return df
 
 
-def make_model(name: ModelName, random_state: int):
-    """Instantiate a model by name."""
-    if name == "xgboost":
-        from xgboost import XGBRegressor
+def prepare_crop_dataset(df: pd.DataFrame, crop: str) -> Optional[CropDataset]:
+    subset = df[df["group_or_crop"] == crop].copy()
+    if subset.empty:
+        console.log(f"[yellow]Данные для культуры {crop} отсутствуют – пропускаю.[/yellow]")
+        return None
 
-        return XGBRegressor(
-            n_estimators=500,
-            learning_rate=0.05,
-            max_depth=6,
-            subsample=0.8,
-            colsample_bytree=0.8,
-            random_state=random_state,
-            n_jobs=-1,
+    subset = subset.sort_values("year")
+    subset["year"] = subset["year"].astype(int)
+    numeric_cols = subset.select_dtypes(include=[np.number]).columns.tolist()
+
+    for col in subset.columns:
+        if col not in numeric_cols and col not in {"region", "group_or_crop"}:
+            subset[col] = pd.to_numeric(subset[col], errors="coerce")
+
+    feature_cols = [
+        col
+        for col in subset.columns
+        if col
+        not in {
+            "region",
+            "group_or_crop",
+            "year",
+            "Yield_t_ha",
+            "Yield_anom",
+        }
+    ]
+
+    X = subset[feature_cols].copy()
+    # drop columns without data
+    X = X.dropna(axis=1, how="all")
+    # forward/backward fill within crop, then mean
+    X = X.ffill().bfill()
+    X = X.fillna(X.mean())
+    X = X.replace([np.inf, -np.inf], np.nan)
+    X = X.dropna(axis=1, how="any")
+    std = X.std(axis=0)
+    non_constant = std[std > 0].index.tolist()
+    X = X[non_constant]
+    if X.shape[1] == 0:
+        console.log(f"[yellow]Все признаки константные для {crop} – пропускаю.[/yellow]")
+        return None
+
+    target = subset["Yield_t_ha"].astype(float)
+    if target.isna().all():
+        console.log(f"[yellow]Нет целевых значений для {crop} – пропускаю.[/yellow]")
+        return None
+
+    return CropDataset(
+        crop=crop,
+        years=subset["year"],
+        features=X,
+        target=target,
+    )
+
+
+def compute_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> Dict[str, float]:
+    mae = mean_absolute_error(y_true, y_pred)
+    rmse = math.sqrt(mean_squared_error(y_true, y_pred))
+    with np.errstate(divide="ignore", invalid="ignore"):
+        mape_array = np.abs((y_true - y_pred) / y_true) * 100
+        mape_array = mape_array[~np.isinf(mape_array)]
+        mape = float(np.nanmean(mape_array)) if mape_array.size else float("nan")
+    return {"MAE": float(mae), "RMSE": float(rmse), "MAPE": mape}
+
+
+def walk_forward_predictions(
+    model_name: str,
+    dataset: CropDataset,
+) -> List[Dict[str, float]]:
+    years_unique = sorted(dataset.years.unique())
+    evaluation_years = [year for year in years_unique if classify_split(year) in {"validation", "test"}]
+    results: List[Dict[str, float]] = []
+
+    for year in evaluation_years:
+        train_mask = dataset.years < year
+        test_mask = dataset.years == year
+        if not train_mask.any() or not test_mask.any():
+            continue
+
+        model = build_model(model_name)
+        X_train = dataset.features.loc[train_mask]
+        y_train = dataset.target.loc[train_mask]
+        X_test = dataset.features.loc[test_mask]
+        y_test = dataset.target.loc[test_mask]
+
+        if X_train.empty or X_test.empty:
+            continue
+
+        train_std = X_train.std(axis=0)
+        variable_columns = train_std[train_std > 0].index.tolist()
+        if not variable_columns:
+            console.log(f"[yellow]Пропуск {model_name} {dataset.crop} {year}: нет варьирующихся признаков.[/yellow]")
+            continue
+        X_train = X_train[variable_columns]
+        X_test = X_test[variable_columns]
+
+        try:
+            model.fit(X_train, y_train)
+            predictions = model.predict(X_test)
+        except Exception as exc:
+            raise RuntimeError(
+                f"Не удалось обучить {model_name} для культуры {dataset.crop}: {exc}"
+            ) from exc
+
+        for actual, predicted in zip(y_test.to_numpy(), predictions):
+            metrics = compute_metrics(np.array([actual]), np.array([predicted]))
+            results.append(
+                {
+                    "model": model_name,
+                    "crop": dataset.crop,
+                    "year": int(year),
+                    "split": classify_split(year),
+                    "actual": float(actual),
+                    "predicted": float(predicted),
+                    **metrics,
+                }
+            )
+
+    return results
+
+
+def aggregate_metrics(metrics_df: pd.DataFrame) -> pd.DataFrame:
+    if metrics_df.empty:
+        return metrics_df
+    grouped = (
+        metrics_df.groupby(["model", "crop", "split"], as_index=False)[["MAE", "RMSE", "MAPE"]]
+        .mean()
+        .assign(year="avg")
+    )
+    return pd.concat([metrics_df, grouped], ignore_index=True)
+
+
+def plot_actual_vs_predicted(metrics_df: pd.DataFrame, crop: str, model: str) -> None:
+    subset = metrics_df[(metrics_df["crop"] == crop) & (metrics_df["model"] == model) & (metrics_df["split"] == "test")]
+    if subset.empty:
+        return
+    subset = subset.sort_values("year")
+
+    fig, ax = plt.subplots(figsize=(8, 4))
+    ax.plot(subset["year"], subset["actual"], marker="o", label="Факт")
+    ax.plot(subset["year"], subset["predicted"], marker="o", label="Прогноз")
+    ax.set_title(f"Факт vs прогноз (test) — {crop} ({model})")
+    ax.set_xlabel("Рік")
+    ax.set_ylabel("Урожайність, t/ha")
+    ax.grid(True, alpha=0.3)
+    ax.legend()
+    FIGURES_DIR.mkdir(parents=True, exist_ok=True)
+    fig.savefig(FIGURES_DIR / f"{model}_{slugify(crop)}_actual_vs_pred.png", dpi=200, bbox_inches="tight")
+    plt.close(fig)
+
+
+def train_for_shap(model_name: str, dataset: CropDataset) -> Optional[Tuple[object, pd.DataFrame]]:
+    """Train model on all available data except the most recent year for SHAP analysis."""
+    unique_years = sorted(dataset.years.unique())
+    if len(unique_years) < 2:
+        return None
+    shap_cutoff = unique_years[-2]
+    mask = dataset.years <= shap_cutoff
+    if not mask.any():
+        return None
+
+    model = build_model(model_name)
+    try:
+        X_train = dataset.features.loc[mask]
+        train_std = X_train.std(axis=0)
+        variable_columns = train_std[train_std > 0].index.tolist()
+        if not variable_columns:
+            console.log(f"[yellow]SHAP пропущен: нет варьирующихся признаков ({model_name}, {dataset.crop}).[/yellow]")
+            return None
+        X_train = X_train[variable_columns]
+        model.fit(X_train, dataset.target.loc[mask])
+    except Exception as exc:
+        raise RuntimeError(
+            f"Не удалось обучить {model_name} для SHAP (культура {dataset.crop}): {exc}"
+        ) from exc
+    return model, X_train
+
+
+def plot_shap_importance(model: object, X_train: pd.DataFrame, model_name: str, crop: str) -> None:
+    try:
+        explainer = shap.TreeExplainer(model)
+        shap_values = explainer.shap_values(X_train)
+    except Exception as exc:
+        console.log(f"[yellow]SHAP не рассчитан для {model_name} ({crop}): {exc}[/yellow]")
+        return
+    if isinstance(shap_values, list):
+        shap_values = shap_values[0]
+    mean_abs = np.abs(shap_values).mean(axis=0)
+    feature_importance = pd.Series(mean_abs, index=X_train.columns)
+    top_features = feature_importance.sort_values(ascending=False).head(10)
+    if top_features.empty:
+        return
+
+    fig, ax = plt.subplots(figsize=(8, 6))
+    top_features.sort_values().plot(kind="barh", ax=ax, color="#2E86AB")
+    ax.set_title(f"SHAP топ-10 признаков — {crop} ({model_name})")
+    ax.set_xlabel("Mean |SHAP|")
+    ax.set_ylabel("Признак")
+    ax.grid(True, axis="x", alpha=0.3)
+    FIGURES_DIR.mkdir(parents=True, exist_ok=True)
+    fig.savefig(FIGURES_DIR / f"shap_{model_name}_{slugify(crop)}.png", dpi=200, bbox_inches="tight")
+    plt.close(fig)
+
+
+def build_model(model_name: str):
+    if model_name == "elasticnet":
+        return Pipeline(
+            [
+                ("scaler", StandardScaler()),
+                (
+                    "model",
+                    ElasticNet(alpha=0.1, l1_ratio=0.5, random_state=RANDOM_STATE, max_iter=10000),
+                ),
+            ]
         )
-    if name == "lightgbm":
-        from lightgbm import LGBMRegressor
+    if model_name == "xgboost":
+        try:
+            from xgboost import XGBRegressor
+        except Exception as exc:
+            raise RuntimeError(
+                "XGBoost недоступен (проверьте, установлен ли libomp). "
+                "Установите libomp или уберите xgboost из списка моделей."
+            ) from exc
+
+        try:
+            return XGBRegressor(
+                n_estimators=500,
+                learning_rate=0.05,
+                max_depth=6,
+                subsample=0.8,
+                colsample_bytree=0.8,
+                random_state=RANDOM_STATE,
+                n_jobs=-1,
+                objective="reg:squarederror",
+                verbosity=0,
+            )
+        except Exception as exc:
+            raise RuntimeError(
+                "XGBoost не может быть инициализирован (libxgboost недоступен). "
+                "Установите libomp или уберите xgboost из списка моделей."
+            ) from exc
+    if model_name == "lightgbm":
+        try:
+            from lightgbm import LGBMRegressor
+        except Exception as exc:
+            raise RuntimeError(
+                "LightGBM недоступен (проверьте, установлен ли libomp). "
+                "Установите libomp или уберите lightgbm из списка моделей."
+            ) from exc
 
         return LGBMRegressor(
             n_estimators=500,
@@ -92,114 +334,67 @@ def make_model(name: ModelName, random_state: int):
             num_leaves=64,
             subsample=0.8,
             colsample_bytree=0.8,
-            random_state=random_state,
+            random_state=RANDOM_STATE,
+             min_child_samples=1,
+             min_data_in_leaf=1,
+             min_data_in_bin=1,
+             verbose=-1,
         )
-    if name == "random_forest":
-        from sklearn.ensemble import RandomForestRegressor
-
-        return RandomForestRegressor(
-            n_estimators=500,
-            max_depth=None,
-            random_state=random_state,
-            n_jobs=-1,
-        )
-    raise ValueError(f"Unsupported model: {name}")
+    raise ValueError(f"Неизвестная модель: {model_name}")
 
 
-def evaluate(y_true: np.ndarray, y_pred: np.ndarray) -> dict[str, float]:
-    """Compute common regression metrics."""
-    return {
-        "rmse": float(np.sqrt(mean_squared_error(y_true, y_pred))),
-        "mae": float(mean_absolute_error(y_true, y_pred)),
-        "r2": float(r2_score(y_true, y_pred)),
-    }
+def train_models(
+    features_df: pd.DataFrame,
+    models: Iterable[str] = ("elasticnet", "xgboost", "lightgbm"),
+) -> pd.DataFrame:
+    all_records: List[Dict[str, float]] = []
+
+    for crop in TARGET_CROPS:
+        dataset = prepare_crop_dataset(features_df, crop)
+        if dataset is None:
+            continue
+
+        for model_name in models:
+            console.print(f"[cyan]Модель {model_name} — культура {crop}[/cyan]")
+            try:
+                predictions = walk_forward_predictions(model_name, dataset)
+            except RuntimeError as exc:
+                console.log(f"[yellow]{exc}[/yellow]")
+                continue
+            all_records.extend(predictions)
+
+            if predictions:
+                metrics_df = pd.DataFrame(predictions)
+                plot_actual_vs_predicted(metrics_df, crop, model_name)
+
+            if model_name in {"xgboost", "lightgbm"}:
+                try:
+                    shap_artifacts = train_for_shap(model_name, dataset)
+                except RuntimeError as exc:
+                    console.log(f"[yellow]{exc}[/yellow]")
+                    shap_artifacts = None
+                if shap_artifacts:
+                    shap_model, shap_X = shap_artifacts
+                    plot_shap_importance(shap_model, shap_X, model_name, crop)
+
+    metrics_df = pd.DataFrame(all_records, columns=["model", "crop", "split", "year", "actual", "predicted", "MAE", "RMSE", "MAPE"])
+    return metrics_df
 
 
-def backtest(
-    config: TrainConfig,
-    X: pd.DataFrame,
-    y: pd.Series,
-) -> list[dict[str, float]]:
-    """Perform time-series backtesting."""
-    if not config.date_column:
-        raise ValueError("Backtesting requires a date column in the dataset.")
+@app.command("poltava")
+def poltava_command(features_path: Path = typer.Option(FEATURES_PATH, exists=True, help="Путь до parquet с фичами.")) -> None:
+    """Запустить обучение/оценку моделей по Полтавской области."""
+    features_df = load_features(features_path)
+    metrics_df = train_models(features_df)
 
-    df = X.copy()
-    df[config.target] = y
-    df = df.sort_values(config.date_column)
-    X_sorted = df.loc[:, X.columns]
-    y_sorted = df[config.target]
+    if metrics_df.empty:
+        console.print("[red]Не удалось рассчитать метрики — проверьте данные.[/red]")
+        return
 
-    splitter = TimeSeriesSplit(n_splits=config.n_splits)
-    metrics: list[dict[str, float]] = []
-
-    for fold, (train_idx, test_idx) in enumerate(splitter.split(X_sorted), start=1):
-        model = make_model(config.model, config.random_state)
-        X_train, X_test = X_sorted.iloc[train_idx], X_sorted.iloc[test_idx]
-        y_train, y_test = y_sorted.iloc[train_idx], y_sorted.iloc[test_idx]
-
-        if config.scale_features:
-            scaler = StandardScaler()
-            X_train = pd.DataFrame(scaler.fit_transform(X_train), columns=X_train.columns, index=X_train.index)
-            X_test = pd.DataFrame(scaler.transform(X_test), columns=X_test.columns, index=X_test.index)
-        model.fit(X_train, y_train)
-        prediction = model.predict(X_test)
-        fold_metrics = evaluate(y_test.to_numpy(), prediction)
-        fold_metrics["fold"] = fold
-        metrics.append(fold_metrics)
-        console.print(f"[cyan]Fold {fold}[/cyan]: {fold_metrics}")
-
-    return metrics
-
-
-def train_holdout(config: TrainConfig, X: pd.DataFrame, y: pd.Series) -> dict[str, float]:
-    """Train a model with a simple train/test split."""
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=config.test_size, random_state=config.random_state
-    )
-    scaler = None
-    if config.scale_features:
-        scaler = StandardScaler()
-        X_train = pd.DataFrame(scaler.fit_transform(X_train), columns=X.columns, index=X_train.index)
-        X_test = pd.DataFrame(scaler.transform(X_test), columns=X.columns, index=X_test.index)
-
-    model = make_model(config.model, config.random_state)
-    model.fit(X_train, y_train)
-    prediction = model.predict(X_test)
-    metrics = evaluate(y_test.to_numpy(), prediction)
-    console.print(f"[green]Holdout metrics[/green]: {metrics}")
-
-    artefacts = {"model": model}
-    if scaler is not None:
-        artefacts["scaler"] = scaler
-    return {"metrics": metrics, "artefacts": artefacts}
-
-
-@app.command("run")
-def run_command(config_path: Path, model_dir: Optional[Path] = typer.Option(Path("models"), help="Artefact dir.")) -> None:
-    """Run training with configuration provided as JSON."""
-    config = load_config(config_path)
-    X, y = load_dataset(config.data_path, config.features, config.target, date_column=config.date_column)
-
-    if config.date_column and config.date_column not in X.columns:
-        raise ValueError(f"date_column '{config.date_column}' not found among feature columns.")
-
-    if config.date_column:
-        metrics = backtest(config, X, y)
-        console.print(f"[bold green]Backtest complete[/bold green]")
-    else:
-        result = train_holdout(config, X, y)
-        metrics = [result["metrics"]]
-        if model_dir:
-            model_dir = model_dir or Path("models")
-            model_dir.mkdir(parents=True, exist_ok=True)
-            artefact_path = model_dir / f"{config.model}_model.pkl"
-            import joblib
-
-            joblib.dump(result["artefacts"], artefact_path)
-            console.print(f"[green]Saved artefacts to {artefact_path}[/green]")
-
-    console.print({"metrics": metrics})
+    metrics_export = aggregate_metrics(metrics_df)
+    utils.ensure_directories([METRICS_PATH.parent])
+    metrics_export.to_csv(METRICS_PATH, index=False)
+    console.print(f"[green]Метрики сохранены в {METRICS_PATH}[/green]")
 
 
 if __name__ == "__main__":
