@@ -1,0 +1,111 @@
+name: Agrostats CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        lfs: false
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Cache pip packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libomp-dev
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip setuptools wheel
+        pip install -r requirements.txt
+        pip install -e .
+
+    - name: Verify data files present
+      run: |
+        if [ ! -d "data/raw/agrostats" ]; then
+          echo "Error: data/raw/agrostats directory not found"
+          exit 1
+        fi
+        if [ -z "$(find data/raw/agrostats -name '*.csv' | head -1)" ]; then
+          echo "Error: No CSV files found in data/raw/agrostats"
+          exit 1
+        fi
+        echo "✅ Data files verified"
+
+    - name: Load and normalize data
+      run: |
+        python -m agrostats.io load-folder
+        python -m agrostats.normalize agrostats
+
+    - name: Generate features
+      run: |
+        python -m agrostats.features build-poltava
+
+    - name: Run validation
+      run: |
+        python -m agrostats.validate data/interim/agrostats_norm.parquet
+
+    - name: Generate EDA plots
+      run: |
+        python -m agrostats.eda --mode acf
+        python -m agrostats.eda --mode correlations
+        python -m agrostats.eda --mode trends
+
+    - name: Train models
+      run: |
+        python -m agrostats.train
+
+    - name: Run QA checks
+      run: |
+        python scripts/qa_check.py
+
+    - name: Upload reports
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: reports-${{ matrix.python-version }}
+        path: |
+          reports/**
+          !reports/**/*.log
+        retention-days: 30
+
+    - name: Upload validation report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: validation-report-${{ matrix.python-version }}
+        path: reports/validation.md
+        retention-days: 90
+
+    - name: Check validation status
+      run: |
+        if grep -q "PASSED" reports/validation.md; then
+          echo "✅ Validation PASSED"
+        else
+          echo "❌ Validation FAILED"
+          exit 1
+        fi

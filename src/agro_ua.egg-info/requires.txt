@@ -1,0 +1,16 @@
+pandas
+numpy
+pyarrow
+polars==1.7.1
+python-dateutil
+typer
+pydantic
+matplotlib
+seaborn
+scikit-learn
+xgboost
+lightgbm
+shap
+rich
+joblib
+statsmodels

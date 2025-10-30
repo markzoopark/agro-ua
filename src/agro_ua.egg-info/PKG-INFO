@@ -1,0 +1,22 @@
+Metadata-Version: 2.4
+Name: agro-ua
+Version: 0.1.0
+Summary: Agricultural analytics toolkit for Ukrainian agro statistics.
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: pandas
+Requires-Dist: numpy
+Requires-Dist: pyarrow
+Requires-Dist: polars==1.7.1
+Requires-Dist: python-dateutil
+Requires-Dist: typer
+Requires-Dist: pydantic
+Requires-Dist: matplotlib
+Requires-Dist: seaborn
+Requires-Dist: scikit-learn
+Requires-Dist: xgboost
+Requires-Dist: lightgbm
+Requires-Dist: shap
+Requires-Dist: rich
+Requires-Dist: joblib
+Requires-Dist: statsmodels
