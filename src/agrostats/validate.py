@@ -18,6 +18,7 @@ app = typer.Typer(help="Validation CLI for agrostats datasets.")
 
 
 VALIDATION_REPORT_PATH = Path("reports/validation.md")
+FEATURES_PATH = Path("data/processed/agrostats_poltava_features.parquet")
 EXPECTED_YEARS = list(range(2010, 2025))
 KEY_SERIES = [
     ("Урожайність", "Пшениця"),
@@ -25,6 +26,7 @@ KEY_SERIES = [
     ("Урожайність", "Соняшник"),
     ("Посівна площа", "Всі культури"),
 ]
+FEATURE_TARGET_CROPS = ("Пшениця", "Кукурудза", "Соняшник")
 ALLOWED_UNITS = {"t/ha", "ha", "kg/ha", "share", "m3/ha", "mm"}
 UNIT_CANONICAL = {
     None: None,
@@ -143,10 +145,90 @@ def dataframe_to_markdown(df: pd.DataFrame) -> str:
     return df.to_string(index=False)
 
 
+def _format_problem_years(df: pd.DataFrame, mask: pd.Series) -> str:
+    if not mask.any():
+        return ""
+    subset = df.loc[mask, ["group_or_crop", "year"]].dropna()
+    if subset.empty:
+        return ""
+    subset["year"] = subset["year"].astype(int)
+    grouped = subset.groupby("group_or_crop")["year"].apply(lambda years: sorted(set(years)))
+    return ", ".join(f"{crop}: {years}" for crop, years in grouped.items())
+
+
+def check_feature_constraints(df: pd.DataFrame) -> List[str]:
+    """Validate feature dataset ranges and structural assumptions."""
+    errors: List[str] = []
+    required_columns = {
+        "Yield_t_ha",
+        "Area_ha",
+        "N_kg_ha",
+        "P2O5_kg_ha",
+        "K_kg_ha",
+        "Mineral_treated_share",
+        "Irrig_mm",
+        "group_or_crop",
+        "year",
+    }
+    missing = required_columns - set(df.columns)
+    if missing:
+        return [f"Відсутні необхідні колонки у фічах: {sorted(missing)}"]
+
+    def check_range(column: str, lower: Optional[float] = None, upper: Optional[float] = None, inclusive: bool = True) -> None:
+        series = pd.to_numeric(df[column], errors="coerce")
+        valid = series.notna()
+        mask = pd.Series(False, index=df.index)
+        if lower is not None:
+            if inclusive:
+                mask |= valid & (series < lower)
+            else:
+                mask |= valid & (series <= lower)
+        if upper is not None:
+            if inclusive:
+                mask |= valid & (series > upper)
+            else:
+                mask |= valid & (series >= upper)
+        if mask.any():
+            problems = _format_problem_years(df, mask)
+            errors.append(f"{column}: вихід за межі [{lower}, {upper}] — {problems}")
+
+    # Range checks
+    check_range("Yield_t_ha", 1, 12, inclusive=True)
+    mask_area = pd.to_numeric(df["Area_ha"], errors="coerce") <= 0
+    if mask_area.any():
+        problems = _format_problem_years(df, mask_area)
+        errors.append(f"Area_ha: непозитивні значення — {problems}")
+    check_range("N_kg_ha", 0, 300, inclusive=True)
+    check_range("P2O5_kg_ha", 0, 300, inclusive=True)
+    check_range("K_kg_ha", 0, 300, inclusive=True)
+    check_range("Mineral_treated_share", 0, 1, inclusive=True)
+    check_range("Irrig_mm", 0, 50, inclusive=True)
+
+    # Structural checks per crop
+    for crop in FEATURE_TARGET_CROPS:
+        subset = df[df["group_or_crop"] == crop]
+        if subset.empty:
+            errors.append(f"Відсутні дані для культури {crop}")
+            continue
+        years = sorted(int(year) for year in subset["year"].dropna().astype(int))
+        expected_years = set(EXPECTED_YEARS)
+        actual_years = set(years)
+        missing_years = sorted(expected_years - actual_years)
+        if missing_years:
+            errors.append(f"{crop}: відсутні роки {missing_years}")
+        duplicates = subset.duplicated(subset=["group_or_crop", "year"], keep=False)
+        if duplicates.any():
+            dup_years = sorted(set(int(y) for y in subset.loc[duplicates, "year"]))
+            errors.append(f"{crop}: дублікати для років {dup_years}")
+
+    return errors
+
+
 def build_report(
     year_issues: Sequence[dict[str, object]],
     invalid_units: pd.DataFrame,
     outliers: pd.DataFrame,
+    feature_errors: Sequence[str],
     success: bool,
 ) -> str:
     """Compose a markdown report from validation results."""
@@ -199,6 +281,13 @@ def build_report(
         lines.append(dataframe_to_markdown(outliers))
         lines.append("```")
 
+    lines.extend(["", "## Feature Constraints"])
+    if feature_errors:
+        for err in feature_errors:
+            lines.append(f"- {err}")
+    else:
+        lines.append("- Перевірки фіч успішно пройдено.")
+
     return "\n".join(lines) + "\n"
 
 
@@ -225,10 +314,20 @@ def validate_agrostats(df: pd.DataFrame) -> Tuple[bool, str]:
     invalid_units = check_unit_values(df)
     outliers = detect_yield_outliers(df)
 
-    success = not year_issues and invalid_units.empty
-    report = build_report(year_issues, invalid_units, outliers, success)
+    feature_errors: List[str] = []
+    try:
+        feature_df = pd.read_parquet(FEATURES_PATH)
+        feature_errors.extend(check_feature_constraints(feature_df))
+    except FileNotFoundError:
+        feature_errors.append(f"Файл з фічами не знайдено: {FEATURES_PATH}")
+
+    success = not year_issues and invalid_units.empty and not feature_errors
+    report = build_report(year_issues, invalid_units, outliers, feature_errors, success)
     write_report(report)
-    return success, report
+    if feature_errors:
+        message = "\n".join(feature_errors)
+        return success, report, message
+    return success, report, ""
 
 
 @app.command("agrostats")
@@ -237,11 +336,14 @@ def validate_agrostats_command(
 ) -> None:
     """Validate the normalized AgroStats dataset and persist a report."""
     df = pd.read_parquet(path)
-    success, report = validate_agrostats(df)
+    success, report, feature_message = validate_agrostats(df)
     console.print(report)
     status = "green" if success else "red"
     console.print(f"[{status}]Validation {'passed' if success else 'failed'}[/]")
     console.print(f"Отчет сохранен в {VALIDATION_REPORT_PATH}")
+    if feature_message:
+        console.print(f"[red]{feature_message}[/red]")
+        raise AssertionError(feature_message)
 
 
 if __name__ == "__main__":

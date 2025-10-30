@@ -1,4 +1,4 @@
-# Validation Report (2025-10-30 13:35:01)
+# Validation Report (2025-10-30 14:56:18)
 
 Result: **✅ PASSED**
 
@@ -25,3 +25,6 @@ group_or_crop  year  value_norm  lower_bound  upper_bound   iqr
       Пшениця  2012        3.17       3.2225       5.4825 0.565
        Ячмінь  2010        1.88       1.9675       4.3475 0.595
 ```
+
+## Feature Constraints
+- Перевірки фіч успішно пройдено.

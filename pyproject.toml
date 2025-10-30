@@ -24,6 +24,7 @@ dependencies = [
     "shap",
     "rich",
     "joblib",
+    "statsmodels",
 ]
 
 [tool.setuptools]

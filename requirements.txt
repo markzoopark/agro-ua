@@ -13,3 +13,4 @@ lightgbm
 shap
 rich
 joblib
+statsmodels
