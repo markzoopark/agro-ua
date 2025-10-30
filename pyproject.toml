@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agro-ua"
+version = "0.1.0"
+description = "Agricultural analytics toolkit for Ukrainian agro statistics."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pandas",
+    "numpy",
+    "pyarrow",
+    "polars==1.7.1",
+    "python-dateutil",
+    "typer",
+    "pydantic",
+    "matplotlib",
+    "seaborn",
+    "scikit-learn",
+    "xgboost",
+    "lightgbm",
+    "shap",
+    "rich",
+    "joblib",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
