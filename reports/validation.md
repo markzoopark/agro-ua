@@ -1,15 +1,15 @@
-# Validation Report (2025-10-31 15:25:21)
+# Validation Report (2025-10-31 15:42:17)
 
 Result: **✅ PASSED**
 
 ## Year Coverage
-- Все ключевые серии покрывают период 2010–2024 без пропусков.
+- All key series cover 2010–2024 without gaps.
 
 ## Unit Consistency
-- Все значения unit_norm соответствуют ожидаемым единицам.
+- All unit_norm values match the allowed units.
 
 ## Yield Outliers (IQR)
-- Найдены потенциальные выбросы:
+- Potential yield outliers identified:
 
 ```
 group_or_crop  year  value_norm  lower_bound  upper_bound   iqr
@@ -27,4 +27,4 @@ group_or_crop  year  value_norm  lower_bound  upper_bound   iqr
 ```
 
 ## Feature Constraints
-- Перевірки фіч успішно пройдено.
+- Feature checks passed successfully.
