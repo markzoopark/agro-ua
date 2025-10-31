@@ -159,7 +159,11 @@ def rename_columns(df: pd.DataFrame, mapping: Mapping[str, str]) -> pd.DataFrame
     return df.rename(columns=mapping)
 
 
-def load_folder(raw_dir: Path = Path("data/raw/agrostats/полтава")) -> pd.DataFrame:
+DEFAULT_REGION_SLUG = "poltava"
+DEFAULT_RAW_DIR = Path("data/raw/agrostats") / DEFAULT_REGION_SLUG
+
+
+def load_folder(raw_dir: Path = DEFAULT_RAW_DIR) -> pd.DataFrame:
     """Собрать все выгрузки AgroStats в один датафрейм и сохранить в parquet."""
     csv_files = sorted(raw_dir.glob("*.csv"))
     if not csv_files:
@@ -237,7 +241,7 @@ def split_command(
 
 @app.command("load-folder")
 def load_folder_command(
-    raw_dir: Path = typer.Argument(Path("data/raw/agrostats/полтава"), exists=True, dir_okay=True),
+    raw_dir: Path = typer.Argument(DEFAULT_RAW_DIR, exists=True, dir_okay=True),
 ) -> None:
     """CLI-обертка для load_folder."""
     df = load_folder(raw_dir)

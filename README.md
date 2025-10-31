@@ -7,7 +7,7 @@ This repository hosts a reproducible pipeline for forecasting crop yields in Pol
 ## Project Overview
 
 -   **Goal.** Predict annual yields (`t/ha`) for Poltava crops based on regional statistics and agronomic factors.
--   **Data source.** AgroStats regional exports (CSV). Place all raw files inside `data/raw/agrostats/полтава/`.
+-   **Data source.** AgroStats regional exports (CSV). Place raw files inside `data/raw/agrostats/poltava/` (region slugs use Latin characters).
 -   **Unit harmonisation.** Yields `ц/га → т/га`, areas `тис. га → га`, irrigation `млн м³ → мм`, fertiliser masses converted to kg/ha or shares as specified in `src/agrostats/normalize.py`.
 -   **Feature engineering.** Lagged (t−1) indicators and 5-year moving averages are stored in `data/processed/agrostats_poltava_features.parquet`.
 -   **Modelling scenarios.**
@@ -22,7 +22,7 @@ This repository hosts a reproducible pipeline for forecasting crop yields in Pol
 1. **Raw CSVs**
 
     ```
-    data/raw/agrostats/полтава/*.csv
+    data/raw/agrostats/poltava/*.csv
     ```
 
 2. **Ingestion / Normalisation / Validation**
@@ -36,6 +36,16 @@ This repository hosts a reproducible pipeline for forecasting crop yields in Pol
 ---
 
 ## Running the Pipeline
+
+### Quick start
+
+```bash
+python run_all.py --region poltava --languages uk,en
+```
+
+The command automatically loads raw CSVs from `data/raw/agrostats/poltava/`, normalises units, builds features, runs validation, trains both `lag_only`/`in_season` models, computes Excel baselines, and exports publication figures (Ukrainian & English). All artefacts land in `reports/`.
+
+### Manual steps (advanced)
 
 ```bash
 python -m src.agrostats.validate
