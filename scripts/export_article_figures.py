@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Dict, Iterable, Tuple
 
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 import numpy as np
 import pandas as pd
 
@@ -17,6 +18,8 @@ FIGURES_DIR = REPORTS_DIR / "figures_article"
 PROCESSED_FEATURES = BASE_DIR / "data" / "processed" / "agrostats_poltava_features.parquet"
 METRICS_CSV = REPORTS_DIR / "metrics.csv"
 PREDICTIONS_CSV = REPORTS_DIR / "predictions.csv"
+METRICS_BY_SCENARIO_CSV = REPORTS_DIR / "metrics_by_scenario.csv"
+BASELINE_SUMMARY_CSV = REPORTS_DIR / "metrics_baselines_summary.csv"
 
 TARGET_CROPS = ("Пшениця", "Кукурудза", "Соняшник")
 CROP_SLUG = {
@@ -53,6 +56,11 @@ LANG_CONFIG: Dict[str, Dict[str, str]] = {
         "shap_title": "SHAP топ-10 ознак — {crop} ({model})",
         "shap_xlabel": "Середнє |SHAP|",
         "shap_ylabel": "Ознака",
+        "baseline_vs_ml_title": "MAE тестового прогнозу: Excel проти ML",
+        "baseline_vs_ml_ylabel": "MAE, т/га (нижче — краще)",
+        "excel_label": "Excel-функції",
+        "ml_label": "ML-модель",
+        "ml_bar": "ML ({model})",
     },
     "en": {
         "crop_names": {
@@ -81,6 +89,11 @@ LANG_CONFIG: Dict[str, Dict[str, str]] = {
         "shap_title": "SHAP top-10 features — {crop} ({model})",
         "shap_xlabel": "Mean |SHAP|",
         "shap_ylabel": "Feature",
+        "baseline_vs_ml_title": "Test MAE: Excel vs ML",
+        "baseline_vs_ml_ylabel": "MAE, t/ha (lower is better)",
+        "excel_label": "Excel baselines",
+        "ml_label": "ML model",
+        "ml_bar": "ML ({model})",
     },
 }
 
@@ -92,6 +105,21 @@ TREND_COLUMNS = [
     "K_kg_ha",
     "Irrig_mm",
 ]
+
+BASELINE_LABELS = {
+    "naive_lag1": {"uk": "Naive (t-1)", "en": "Naive (t-1)"},
+    "forecast_linear": {"uk": "FORECAST.LINEAR", "en": "FORECAST.LINEAR"},
+    "linest_lag_only": {"uk": "LINEST + лаги", "en": "LINEST + lags"},
+}
+
+MODEL_LABELS = {
+    "elasticnet": "ElasticNet",
+    "xgboost": "XGBoost",
+    "lightgbm": "LightGBM",
+}
+
+EXCEL_COLOR = "#82B0D9"
+ML_COLOR = "#F28E2B"
 
 
 def ensure_language(lang: str) -> None:
@@ -123,6 +151,29 @@ def ensure_dirs(languages: Iterable[str]) -> Dict[str, Path]:
         path.mkdir(parents=True, exist_ok=True)
         dirs[lang] = path
     return dirs
+
+
+def load_best_ml_metrics() -> pd.DataFrame:
+    if not METRICS_BY_SCENARIO_CSV.exists():
+        raise FileNotFoundError("metrics_by_scenario.csv not found. Run training pipeline first.")
+    df = pd.read_csv(METRICS_BY_SCENARIO_CSV)
+    df = df[(df["scenario"] == "lag_only") & (df["crop"].isin(TARGET_CROPS))]
+    if df.empty:
+        raise RuntimeError("No lag_only metrics available for ML models.")
+    idx = df.groupby("crop")["mae"].idxmin()
+    best = df.loc[idx].copy()
+    best["model_display"] = best["model"].map(MODEL_LABELS).fillna(best["model"])
+    return best
+
+
+def load_baseline_metrics() -> pd.DataFrame:
+    if not BASELINE_SUMMARY_CSV.exists():
+        raise FileNotFoundError("metrics_baselines_summary.csv not found. Run baseline comparison script first.")
+    df = pd.read_csv(BASELINE_SUMMARY_CSV)
+    df = df[df["crop"].isin(TARGET_CROPS)]
+    if df.empty:
+        raise RuntimeError("No baseline metrics available for target crops.")
+    return df
 
 
 def plot_trends(features: pd.DataFrame, languages: Iterable[str]) -> None:
@@ -265,6 +316,107 @@ def plot_heatmap(corr_df: pd.DataFrame, crop: str, lang: str) -> None:
     plt.close(fig)
 
 
+def plot_baseline_vs_ml(languages: Iterable[str]) -> None:
+    baseline_df = load_baseline_metrics()
+    ml_df = load_best_ml_metrics()
+
+    data_per_crop: Dict[str, Iterable[Dict[str, object]]] = {}
+    for crop in TARGET_CROPS:
+        entries = []
+        crop_base = baseline_df[baseline_df["crop"] == crop]
+        for baseline_key in ("naive_lag1", "forecast_linear", "linest_lag_only"):
+            row = crop_base[crop_base["baseline"] == baseline_key]
+            if row.empty:
+                continue
+            entries.append(
+                {
+                    "key": baseline_key,
+                    "value": float(row["mae"].iloc[0]),
+                    "kind": "excel",
+                }
+            )
+        ml_row = ml_df[ml_df["crop"] == crop]
+        if not ml_row.empty:
+            row = ml_row.iloc[0]
+            entries.append(
+                {
+                    "key": "ml",
+                    "value": float(row["mae"]),
+                    "kind": "ml",
+                    "model_display": row["model_display"],
+                }
+            )
+        data_per_crop[crop] = entries
+
+    max_mae = 0.0
+    for entries in data_per_crop.values():
+        for entry in entries:
+            max_mae = max(max_mae, entry["value"])
+    if max_mae == 0.0:
+        return
+    max_mae *= 1.25
+
+    for lang in languages:
+        cfg = LANG_CONFIG[lang]
+        dirs = ensure_dirs([lang])
+        fig, axes = plt.subplots(1, len(TARGET_CROPS), figsize=(14, 4.8), sharey=True)
+        if not isinstance(axes, np.ndarray):
+            axes = np.array([axes])
+        for ax, crop in zip(axes, TARGET_CROPS):
+            crop_entries = list(data_per_crop.get(crop, []))
+            if not crop_entries:
+                ax.set_visible(False)
+                continue
+            labels = []
+            values = []
+            colors = []
+            for entry in crop_entries:
+                if entry["key"] == "ml":
+                    model_display = entry.get("model_display", "ML")
+                    label = cfg["ml_bar"].format(model=model_display)
+                    color = ML_COLOR
+                else:
+                    label = BASELINE_LABELS.get(entry["key"], {}).get(lang, entry["key"])
+                    color = EXCEL_COLOR
+                labels.append(label)
+                values.append(entry["value"])
+                colors.append(color)
+            x = np.arange(len(values))
+            bars = ax.bar(x, values, color=colors, width=0.6)
+            for bar, val in zip(bars, values):
+                ax.text(
+                    bar.get_x() + bar.get_width() / 2,
+                    val + max_mae * 0.02,
+                    f"{val:.2f}",
+                    ha="center",
+                    va="bottom",
+                    fontsize=9,
+                )
+            ax.set_xticks(x)
+            ax.set_xticklabels(labels, rotation=20, ha="right")
+            ax.set_ylim(0, max_mae)
+            ax.set_title(get_crop_label(crop, lang))
+            ax.grid(axis="y", alpha=0.3)
+            if ax is axes[0]:
+                ax.set_ylabel(cfg["baseline_vs_ml_ylabel"])
+        handles = [
+            mpatches.Patch(color=EXCEL_COLOR, label=cfg["excel_label"]),
+            mpatches.Patch(color=ML_COLOR, label=cfg["ml_label"]),
+        ]
+        fig.subplots_adjust(top=0.78)
+        fig.suptitle(cfg["baseline_vs_ml_title"], y=0.98, fontsize=15)
+        fig.legend(
+            handles=handles,
+            loc="upper center",
+            ncol=2,
+            frameon=False,
+            bbox_to_anchor=(0.5, 0.87),
+        )
+        fig.tight_layout(rect=(0, 0, 1, 0.82))
+        fig.savefig(dirs[lang] / "mae_excel_vs_ml.png", bbox_inches="tight", pad_inches=0.15)
+        plt.close(fig)
+
+
 def load_shap_table(model: str, crop: str) -> pd.DataFrame:
     path = REPORTS_DIR / f"shap_top_{model}_{CROP_SLUG[crop]}_lag_only.csv"
     if not path.exists():
@@ -280,10 +432,10 @@ def main() -> None:
     ensure_dirs(languages)
 
     features = pd.read_parquet(PROCESSED_FEATURES)
-    metrics = pd.read_csv(METRICS_CSV)
     predictions = pd.read_csv(PREDICTIONS_CSV)
 
     plot_trends(features, languages)
+    plot_baseline_vs_ml(languages)
 
     best_models = {
         "Кукурудза": "xgboost",
