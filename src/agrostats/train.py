@@ -120,7 +120,7 @@ def classify_split(year: int) -> str:
 
 def load_features(path: Path = FEATURES_PATH) -> pd.DataFrame:
     if not path.exists():
-        raise FileNotFoundError(f"Не найден файл с признаками: {path}. Сначала выполните генерацию фич.")
+        raise FileNotFoundError(f"Feature file not found: {path}. Generate features before training.")
     df = pd.read_parquet(path)
     return df
 
@@ -128,7 +128,7 @@ def load_features(path: Path = FEATURES_PATH) -> pd.DataFrame:
 def prepare_crop_dataset(df: pd.DataFrame, crop: str) -> Optional[CropDataset]:
     subset = df[df["group_or_crop"] == crop].copy()
     if subset.empty:
-        console.log(f"[yellow]Данные для культуры {crop} отсутствуют – пропускаю.[/yellow]")
+        console.log(f"[yellow]No data available for crop {crop}; skipping.[/yellow]")
         return None
 
     subset = subset.sort_values("year")
@@ -164,12 +164,12 @@ def prepare_crop_dataset(df: pd.DataFrame, crop: str) -> Optional[CropDataset]:
     non_constant = std[std > 0].index.tolist()
     X = X[non_constant]
     if X.shape[1] == 0:
-        console.log(f"[yellow]Все признаки константные для {crop} – пропускаю.[/yellow]")
+        console.log(f"[yellow]All features are constant for {crop}; skipping.[/yellow]")
         return None
 
     target = subset["Yield_t_ha"].astype(float)
     if target.isna().all():
-        console.log(f"[yellow]Нет целевых значений для {crop} – пропускаю.[/yellow]")
+        console.log(f"[yellow]No target values for {crop}; skipping.[/yellow]")
         return None
 
     return CropDataset(
@@ -190,13 +190,13 @@ def build_scenario_dataset(dataset: CropDataset, scenario: str) -> Optional[Crop
             allowed_cols.append("Yield_t_ha_lag1")
         features = features.loc[:, [col for col in allowed_cols if col in features.columns]]
     elif scenario == "in_season":
-        # Используем все доступные признаки
+        # Use all available features.
         pass
     else:
-        raise ValueError(f"Невідомий сценарій: {scenario}")
+        raise ValueError(f"Unknown scenario: {scenario}")
 
     if features.empty or features.shape[1] == 0:
-        console.log(f"[yellow]Пропуск сценарію {scenario} для {dataset.crop}: немає ознак.[/yellow]")
+        console.log(f"[yellow]Skipping scenario {scenario} for {dataset.crop}: no features available.[/yellow]")
         return None
 
     return CropDataset(
@@ -244,7 +244,7 @@ def walk_forward_predictions(
         train_std = X_train.std(axis=0)
         variable_columns = train_std[train_std > 0].index.tolist()
         if not variable_columns:
-            console.log(f"[yellow]Пропуск {model_name} {dataset.crop} {year}: нет варьирующихся признаков.[/yellow]")
+            console.log(f"[yellow]Skipping {model_name} {dataset.crop} {year}: no varying features.[/yellow]")
             continue
         X_train = X_train[variable_columns]
         X_test = X_test[variable_columns]
@@ -255,7 +255,7 @@ def walk_forward_predictions(
             predictions = model.predict(X_test)
         except Exception as exc:
             raise RuntimeError(
-                f"Не удалось обучить {model_name} для культуры {dataset.crop}: {exc}"
+                f"Failed to train {model_name} for crop {dataset.crop}: {exc}"
             ) from exc
 
         for actual, predicted in zip(y_test.to_numpy(), predictions):
@@ -381,14 +381,14 @@ def train_for_shap(model_name: str, dataset: CropDataset) -> Optional[Tuple[obje
     years_unique = sorted(dataset.years.unique())
     evaluation_years = [year for year in years_unique if classify_split(year) == "test"]
     if not evaluation_years:
-        console.log(f"[yellow]SHAP пропущен: немає test-періоду ({model_name}, {dataset.crop}).[/yellow]")
+        console.log(f"[yellow]SHAP skipped: no test period ({model_name}, {dataset.crop}).[/yellow]")
         return None
     min_test_year = min(evaluation_years)
 
     train_mask = dataset.years < min_test_year
     test_mask = dataset.years.isin(evaluation_years)
     if not train_mask.any() or not test_mask.any():
-        console.log(f"[yellow]SHAP пропущен: недостатньо даних ({model_name}, {dataset.crop}).[/yellow]")
+        console.log(f"[yellow]SHAP skipped: insufficient data ({model_name}, {dataset.crop}).[/yellow]")
         return None
 
     X_train = dataset.features.loc[train_mask]
@@ -398,7 +398,7 @@ def train_for_shap(model_name: str, dataset: CropDataset) -> Optional[Tuple[obje
     train_std = X_train.std(axis=0)
     variable_columns = train_std[train_std > 0].index.tolist()
     if not variable_columns:
-        console.log(f"[yellow]SHAP пропущен: константні фічі ({model_name}, {dataset.crop}).[/yellow]")
+        console.log(f"[yellow]SHAP skipped: features are constant ({model_name}, {dataset.crop}).[/yellow]")
         return None
 
     X_train = X_train[variable_columns]
@@ -409,7 +409,7 @@ def train_for_shap(model_name: str, dataset: CropDataset) -> Optional[Tuple[obje
         model.fit(X_train, y_train)
     except Exception as exc:
         raise RuntimeError(
-            f"Не удалось обучить {model_name} для SHAP (культура {dataset.crop}): {exc}"
+            f"Failed to train {model_name} for SHAP (crop {dataset.crop}): {exc}"
         ) from exc
     return model, X_test
 
@@ -430,7 +430,7 @@ def plot_shap_importance(
         explainer = shap.TreeExplainer(model)
         shap_values = explainer.shap_values(X_data)
     except Exception as exc:
-        console.log(f"[yellow]SHAP не рассчитан для {model_name} ({crop}): {exc}[/yellow]")
+        console.log(f"[yellow]SHAP could not be computed for {model_name} ({crop}): {exc}[/yellow]")
         return
     if isinstance(shap_values, list):
         shap_values = shap_values[0]
@@ -478,8 +478,8 @@ def build_model(model_name: str):
             from xgboost import XGBRegressor
         except Exception as exc:
             raise RuntimeError(
-                "XGBoost недоступен (проверьте, установлен ли libomp). "
-                "Установите libomp или уберите xgboost из списка моделей."
+                "XGBoost is unavailable (check that libomp is installed). "
+                "Install libomp or remove xgboost from the model list."
             ) from exc
 
         try:
@@ -496,16 +496,16 @@ def build_model(model_name: str):
             )
         except Exception as exc:
             raise RuntimeError(
-                "XGBoost не может быть инициализирован (libxgboost недоступен). "
-                "Установите libomp или уберите xgboost из списка моделей."
+                "XGBoost could not be initialised (libxgboost missing). "
+                "Install libomp or remove xgboost from the model list."
             ) from exc
     if model_name == "lightgbm":
         try:
             from lightgbm import LGBMRegressor
         except Exception as exc:
             raise RuntimeError(
-                "LightGBM недоступен (проверьте, установлен ли libomp). "
-                "Установите libomp или уберите lightgbm из списка моделей."
+                "LightGBM is unavailable (check that libomp is installed). "
+                "Install libomp or remove lightgbm from the model list."
             ) from exc
 
         return LGBMRegressor(
@@ -520,7 +520,7 @@ def build_model(model_name: str):
              min_data_in_bin=1,
              verbose=-1,
         )
-    raise ValueError(f"Неизвестная модель: {model_name}")
+    raise ValueError(f"Unknown model: {model_name}")
 
 
 def train_models(
@@ -548,7 +548,7 @@ def train_models(
                 continue
 
             for model_name in models:
-                console.print(f"[cyan]Модель {model_name} — культура {crop} — сценарій {scenario}[/cyan]")
+                console.print(f"[cyan]Model {model_name} — crop {crop} — scenario {scenario}[/cyan]")
                 try:
                     predictions = walk_forward_predictions(model_name, scenario_dataset, scenario)
                 except RuntimeError as exc:
@@ -595,10 +595,10 @@ def train_models(
 
 @app.command("poltava")
 def poltava_command(
-    features_path: Path = typer.Option(FEATURES_PATH, exists=True, help="Путь до parquet с фичами."),
-    languages: str = typer.Option("uk,en", help="Кома-розділений список мов для графіків (uk,en)."),
+    features_path: Path = typer.Option(FEATURES_PATH, exists=True, help="Path to the feature parquet file."),
+    languages: str = typer.Option("uk,en", help="Comma-separated list of languages for plot generation (uk,en)."),
 ) -> None:
-    """Запустить обучение/оценку моделей по Полтавской области."""
+    """Run model training/evaluation for the Poltava dataset."""
     language_list = [lang.strip() for lang in languages.split(",") if lang.strip()]
     if not language_list:
         language_list = ["uk"]
@@ -609,7 +609,7 @@ def poltava_command(
     metrics_df = train_models(features_df, languages=language_list)
 
     if metrics_df.empty:
-        console.print("[red]Не удалось рассчитать метрики — проверьте данные.[/red]")
+        console.print("[red]Unable to compute metrics — please verify the data.[/red]")
         return
 
     utils.ensure_directories([METRICS_PATH.parent])
@@ -624,7 +624,7 @@ def poltava_command(
     )
     predictions_path = REPORTS_DIR / "predictions.csv"
     predictions_export.to_csv(predictions_path, index=False)
-    console.print(f"[green]Прогнози збережено в {predictions_path}[/green]")
+    console.print(f"[green]Predictions saved to {predictions_path}[/green]")
 
     metrics_export = metrics_df[
         ["year", "crop", "model", "scenario", "split", "MAE", "RMSE", "MAPE", "n_features"]
@@ -638,12 +638,12 @@ def poltava_command(
     )
     metrics_export.columns = [col.lower() for col in metrics_export.columns]
     metrics_export.to_csv(METRICS_PATH, index=False)
-    console.print(f"[green]Метрики збережено в {METRICS_PATH}[/green]")
+    console.print(f"[green]Metrics saved to {METRICS_PATH}[/green]")
 
     try:
         eda.plot_trends(features_df, eda.TARGET_CROPS, language_list)
     except Exception as exc:
-        console.log(f"[yellow]Не вдалося побудувати тренди: {exc}[/yellow]")
+        console.log(f"[yellow]Failed to render trend plots: {exc}[/yellow]")
 
     test_predictions = predictions_export[predictions_export["split"] == "test"].copy()
     if not test_predictions.empty:
@@ -668,13 +668,13 @@ def poltava_command(
 
     summary_path = REPORTS_DIR / "metrics_by_scenario.csv"
     summary.to_csv(summary_path, index=False)
-    console.print(f"[green]Зведення за сценаріями збережено в {summary_path}[/green]")
+    console.print(f"[green]Scenario summary saved to {summary_path}[/green]")
 
     if not summary.empty:
         leaderboard = summary.loc[summary.groupby("crop")["mae"].idxmin()].reset_index(drop=True)
         leaderboard_path = REPORTS_DIR / "metrics_leaderboard.csv"
         leaderboard.to_csv(leaderboard_path, index=False)
-        console.print(f"[green]Таблицю лідерів збережено в {leaderboard_path}[/green]")
+        console.print(f"[green]Leaderboard saved to {leaderboard_path}[/green]")
 
 
 if __name__ == "__main__":

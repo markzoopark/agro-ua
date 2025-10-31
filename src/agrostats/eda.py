@@ -111,7 +111,7 @@ def ensure_language(language: str) -> None:
 
 def load_features(path: Path) -> pd.DataFrame:
     if not path.exists():
-        raise FileNotFoundError(f"Не найден parquet з фічами: {path}")
+        raise FileNotFoundError(f"Feature parquet not found: {path}")
     return pd.read_parquet(path)
 
 
@@ -123,7 +123,7 @@ def compute_acf_pacf(series: pd.Series) -> tuple[np.ndarray, np.ndarray, int, fl
     ordered = series.dropna().astype(float).sort_index()
     y = ordered.values
     if len(y) < 3:
-        raise ValueError("Ряд занадто короткий для розрахунку ACF/PACF.")
+        raise ValueError("Time series is too short to compute ACF/PACF.")
     max_lag = min(6, len(y) - 2)
     acf_vals = sm_acf(y, nlags=max_lag, fft=True, adjusted=False)
     pacf_vals = sm_pacf(y, nlags=max_lag, method="yw")
@@ -139,7 +139,7 @@ def plot_acf_pacf(series: pd.Series, crop: str, language: str) -> None:
     try:
         acf_vals, pacf_vals, max_lag, conf = compute_acf_pacf(series)
     except ValueError as exc:
-        print(f"[!] Пропуск ACF/PACF для {crop}: {exc}")
+        print(f"[!] Skipping ACF/PACF for {crop}: {exc}")
         return
 
     lags = np.arange(1, max_lag + 1)
@@ -176,7 +176,7 @@ def plot_acf_pacf(series: pd.Series, crop: str, language: str) -> None:
     fig.savefig(lang_dir / f"yield_pacf_{slugify(crop)}.png", dpi=200)
     plt.close(fig)
 
-    print(f"[+] Збережено ACF/PACF для {crop} ({language})")
+    print(f"[+] Saved ACF/PACF for {crop} ({language})")
 
 
 def prepare_factor_table(subset: pd.DataFrame) -> pd.DataFrame:
@@ -204,12 +204,12 @@ def corr_with_stats(x: pd.Series, y: pd.Series) -> dict[str, float]:
 def generate_correlation_reports(subset: pd.DataFrame, crop: str, languages: Sequence[str]) -> None:
     table = prepare_factor_table(subset)
     if table.empty:
-        print(f"[!] Недостатньо даних для кореляцій ({crop})")
+        print(f"[!] Not enough data for correlations ({crop})")
         return
 
     factors = [col for col in table.columns if col not in {"year", "Yield_t_ha", "Yield_anom"}]
     if not factors:
-        print(f"[!] Немає факторів для {crop}")
+        print(f"[!] No factors available for {crop}")
         return
 
     pearson_matrix = []
@@ -242,7 +242,7 @@ def generate_correlation_reports(subset: pd.DataFrame, crop: str, languages: Seq
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     csv_path = REPORTS_DIR / f"correlations_{slugify(crop)}.csv"
     corr_df.to_csv(csv_path, index=False)
-    print(f"[+] Збережено таблицю кореляцій {csv_path}")
+    print(f"[+] Saved correlation table {csv_path}")
 
     pivot_data = corr_df.set_index("factor")["pearson_yield"]
     for language in languages:
@@ -272,7 +272,7 @@ def generate_acf_pacf(features_df: pd.DataFrame, crops: Iterable[str], languages
     for crop in crops:
         subset = features_df[features_df["group_or_crop"] == crop].copy()
         if subset.empty:
-            print(f"[!] Немає даних для {crop}")
+            print(f"[!] No data available for {crop}")
             continue
         subset = subset.sort_values("year")
         for language in languages:
@@ -282,7 +282,7 @@ def generate_acf_pacf(features_df: pd.DataFrame, crops: Iterable[str], languages
 def plot_trends(features_df: pd.DataFrame, crops: Sequence[str], languages: Sequence[str]) -> None:
     subset = features_df[features_df["group_or_crop"].isin(crops)].copy()
     if subset.empty:
-        print("[!] Не знайдено даних для графіка трендів.")
+        print("[!] No data available for trend plot.")
         return
     subset = subset.sort_values("year")
 
@@ -321,14 +321,14 @@ def plot_trends(features_df: pd.DataFrame, crops: Sequence[str], languages: Sequ
         fig.tight_layout(rect=(0, 0, 1, 0.96))
         fig.savefig(lang_dir / "poltava_trends.png", dpi=200)
         plt.close(fig)
-        print(f"[+] Збережено графік трендів ({language})")
+        print(f"[+] Saved trend plot ({language})")
 
 
 def correlation_pipeline(features_df: pd.DataFrame, crops: Sequence[str], languages: Sequence[str]) -> None:
     for crop in crops:
         subset = features_df[features_df["group_or_crop"] == crop].copy()
         if subset.empty:
-            print(f"[!] Немає даних для {crop}")
+            print(f"[!] No data available for {crop}")
             continue
         subset = subset.sort_values("year")
         generate_correlation_reports(subset, crop, languages)
@@ -340,18 +340,18 @@ def main(args: list[str] | None = None) -> None:
         "--features-path",
         type=Path,
         default=FEATURES_PATH,
-        help="Parquet файл з фічами (default: data/processed/agrostats_poltava_features.parquet)",
+        help="Feature parquet file (default: data/processed/agrostats_poltava_features.parquet)",
     )
     parser.add_argument(
         "--mode",
         choices=["acf", "correlations", "trends"],
         default="acf",
-        help="Що згенерувати: acf, correlations або trends.",
+        help="What to generate: acf, correlations, or trends.",
     )
     parser.add_argument(
         "--language",
         default="uk",
-        help="Перелік мов через кому (uk,en).",
+        help="Comma-separated list of languages (uk,en).",
     )
     parsed = parser.parse_args(args=args)
 

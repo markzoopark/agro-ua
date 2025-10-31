@@ -72,7 +72,7 @@ def convert_column(
 def _ensure_required_columns(df: pd.DataFrame, required: list[str]) -> None:
     missing = [col for col in required if col not in df.columns]
     if missing:
-        raise ValueError(f"В таблице отсутствуют необходимые колонки: {missing}")
+        raise ValueError(f"Required columns are missing from the table: {missing}")
 
 
 def _build_area_map(df: pd.DataFrame) -> pd.Series:
@@ -80,18 +80,18 @@ def _build_area_map(df: pd.DataFrame) -> pd.Series:
     area_df = df.loc[area_mask, ["region", "group_or_crop", "year", "value_norm"]].copy()
     area_df = area_df.dropna(subset=["value_norm"])
     if area_df.empty:
-        raise ValueError("Не удалось найти данные по посевным площадям.")
+        raise ValueError("Sown area data could not be found.")
     index_columns = ["region", "group_or_crop", "year"]
     duplicated_mask = area_df.duplicated(subset=index_columns, keep=False)
     if duplicated_mask.any():
         duplicates = area_df.loc[duplicated_mask, index_columns]
-        raise ValueError(f"Обнаружены дубли площадей:\n{duplicates}")
+        raise ValueError(f"Duplicate area values detected:\n{duplicates}")
     area_map = area_df.set_index(index_columns)["value_norm"]
     return area_map
 
 
 def normalize_units(df_raw: pd.DataFrame) -> pd.DataFrame:
-    """Нормализовать единицы измерения исходных данных AgroStats."""
+    """Harmonise measurement units for the raw AgroStats dataset."""
     required_columns = [
         "year",
         "region",
@@ -174,7 +174,7 @@ def normalize_units(df_raw: pd.DataFrame) -> pd.DataFrame:
                     )
                     return None
                 return area_value
-            # Попытка использовать последнюю доступную площадь
+            # Try to reuse the most recent available area value.
             try:
                 candidate_series = area_map.loc[(region, candidate)]
             except KeyError:
@@ -214,7 +214,7 @@ def normalize_units(df_raw: pd.DataFrame) -> pd.DataFrame:
         missing_area_records.append({"region": region, "group_or_crop": group, "year": year, "reason": "not_found"})
         return None
 
-    # Минеральные удобрения: тис. га → доля
+    # Mineral fertilisers: thousand ha → share
     mask_mineral = (df["metric"] == "Добрива") & (df["fert_type"] == "Мінеральні")
     mask_mineral_all = mask_mineral & (df["group_or_crop"] == "Всі культури")
     mask_mineral_specific = mask_mineral & ~mask_mineral_all
@@ -235,7 +235,7 @@ def normalize_units(df_raw: pd.DataFrame) -> pd.DataFrame:
         value_norm.loc[mask_mineral_all] = df.loc[mask_mineral_all, "value_raw"]
         unit_norm.loc[mask_mineral_all] = "kg/ha"
 
-    # Азотные удобрения
+    # Nitrogen fertilisers
     mask_nitrogen = (df["metric"] == "Добрива") & (df["fert_type"] == "Азотні")
     mask_nitrogen_all = mask_nitrogen & (df["group_or_crop"] == "Всі культури")
     mask_nitrogen_specific = mask_nitrogen & ~mask_nitrogen_all
@@ -256,7 +256,7 @@ def normalize_units(df_raw: pd.DataFrame) -> pd.DataFrame:
         value_norm.loc[mask_nitrogen_all] = df.loc[mask_nitrogen_all].apply(_nitrogen_all, axis=1)
         unit_norm.loc[mask_nitrogen_all] = "kg/ha"
 
-    # Фосфорные удобрения
+    # Phosphorus fertilisers
     mask_phosphorus = (df["metric"] == "Добрива") & (df["fert_type"] == "Фосфорні")
     mask_phosphorus_all = mask_phosphorus & (df["group_or_crop"] == "Всі культури")
     mask_phosphorus_specific = mask_phosphorus & ~mask_phosphorus_all
@@ -277,7 +277,7 @@ def normalize_units(df_raw: pd.DataFrame) -> pd.DataFrame:
         value_norm.loc[mask_phosphorus_all] = df.loc[mask_phosphorus_all].apply(_phosphorus_all, axis=1)
         unit_norm.loc[mask_phosphorus_all] = "kg/ha"
 
-    # Калийные удобрения
+    # Potassium fertilisers
     mask_potassium = (df["metric"] == "Добрива") & (df["fert_type"] == "Калійні")
     mask_potassium_all = mask_potassium & (df["group_or_crop"] == "Всі культури")
     mask_potassium_specific = mask_potassium & ~mask_potassium_all
@@ -298,7 +298,7 @@ def normalize_units(df_raw: pd.DataFrame) -> pd.DataFrame:
         value_norm.loc[mask_potassium_all] = df.loc[mask_potassium_all].apply(_potassium_all, axis=1)
         unit_norm.loc[mask_potassium_all] = "kg/ha"
 
-    # Органические удобрения
+    # Organic fertilisers
     mask_organic = (df["metric"] == "Добрива") & (df["fert_type"] == "Органічні")
     mask_organic_share = mask_organic & (df["unit_raw"] == "тис. га")
     mask_organic_mass = mask_organic & (df["unit_raw"] == "тис. т")
@@ -327,7 +327,7 @@ def normalize_units(df_raw: pd.DataFrame) -> pd.DataFrame:
         value_norm.loc[mask_organic_mass] = df.loc[mask_organic_mass].apply(_organic_mass, axis=1)
         unit_norm.loc[mask_organic_mass] = "kg/ha"
 
-    # Зрошение
+    # Irrigation
     mask_irrigation = df["metric"] == "Зрошення"
     irrigation_extras: list[pd.DataFrame] = []
     if mask_irrigation.any():
@@ -348,7 +348,7 @@ def normalize_units(df_raw: pd.DataFrame) -> pd.DataFrame:
         irr_mm["unit_norm"] = "mm"
         irrigation_extras.append(irr_mm)
 
-    # Оставшиеся категории: сохраняем исходные значения
+    # Remaining categories: keep original values.
     remaining_mask = unit_norm.isna()
     if remaining_mask.any():
         value_norm.loc[remaining_mask] = df.loc[remaining_mask, "value_raw"]
@@ -361,7 +361,7 @@ def normalize_units(df_raw: pd.DataFrame) -> pd.DataFrame:
     if irrigation_extras:
         frames.extend(irrigation_extras)
 
-    # Добавляем синтетические строки для площадей, где использовали fallback.
+    # Add synthetic area rows for cases where fallback values were used.
     fallback_rows: List[dict[str, object]] = []
     for (region, group, year), info in fallback_area.items():
         area_value = info.get("value_norm")
@@ -398,7 +398,7 @@ def normalize_units(df_raw: pd.DataFrame) -> pd.DataFrame:
     if missing_area_records:
         missing_df = pd.DataFrame(missing_area_records).drop_duplicates()
         missing_df = missing_df.sort_values(["region", "group_or_crop", "year"], na_position="last")
-        console.log("[yellow]Не хватило данных по площадям для нормализации следующих комбинаций:[/yellow]")
+        console.log("[yellow]Missing area data prevented full normalisation for the following combinations:[/yellow]")
         console.log(missing_df)
 
     result = result[
@@ -418,7 +418,7 @@ def normalize_units(df_raw: pd.DataFrame) -> pd.DataFrame:
     output_path = Path("data/interim/agrostats_norm.parquet")
     utils.ensure_directories([output_path.parent])
     result.to_parquet(output_path, index=False)
-    console.log(f"[green]Сохранено нормализованное представление в {output_path}[/green]")
+    console.log(f"[green]Normalised dataset saved to {output_path}[/green]")
     return result
 
 
@@ -517,7 +517,7 @@ def irrigation_command(
 def normalize_agrostats_command(
     raw_path: Path = typer.Argument(Path("data/interim/agrostats_raw.parquet"), exists=True, file_okay=True),
 ) -> None:
-    """Нормализовать все выгрузки AgroStats из подготовленного parquet."""
+    """Normalise measurement units for the prepared AgroStats parquet dataset."""
     df_raw = pd.read_parquet(raw_path)
     df_norm = normalize_units(df_raw)
     console.print(df_norm.head())

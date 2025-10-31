@@ -89,7 +89,7 @@ def _merge_feature(df: pd.DataFrame, feature: pd.DataFrame, *, column_name: str,
 
 
 def build_features(df_norm: pd.DataFrame) -> pd.DataFrame:
-    """Собрать набор признаков для ключевых культур и сохранить в processed."""
+    """Assemble the feature set for key crops and persist processed outputs."""
     df = df_norm.copy()
     df = df[df["group_or_crop"].isin(TARGET_CROPS) | df["metric"].eq("Зрошення")]
     df = df.dropna(subset=["year"])
@@ -102,7 +102,7 @@ def build_features(df_norm: pd.DataFrame) -> pd.DataFrame:
         .rename(columns={"value_norm": "Yield_t_ha"})
     )
     if yield_base.empty:
-        raise ValueError("Не найдено данных по урожайности для целевых культур.")
+        raise ValueError("No yield measurements were found for the target crops.")
 
     features = yield_base.copy()
 
@@ -238,8 +238,8 @@ def build_features(df_norm: pd.DataFrame) -> pd.DataFrame:
 def aggregate_command(
     path: Path,
     output: Path,
-    group_by: List[str] = typer.Argument(..., help="Колонки группировки."),
-    aggregations: List[str] = typer.Argument(..., help="Спецификации вида column:func."),
+    group_by: List[str] = typer.Argument(..., help="Grouping columns."),
+    aggregations: List[str] = typer.Argument(..., help="Column specs in the form column:func."),
 ) -> None:
     """Aggregate a dataset using simple 'column:function' specifications."""
     df = pd.read_csv(path)
@@ -273,12 +273,12 @@ def ratio_command(
 def build_poltava_command(
     path: Path = typer.Argument(Path("data/interim/agrostats_norm.parquet"), exists=True, file_okay=True),
 ) -> None:
-    """Сформировать фича-сет по Полтавской области на основе нормализованных данных."""
+    """Build the Poltava feature set from the normalised dataset."""
     df_norm = pd.read_parquet(path)
     features = build_features(df_norm)
     console.print(features.head())
     console.print(
-        f"[green]Сохранено {len(features)} строк в {OUTPUT_PARQUET} и {OUTPUT_CSV}[/green]"
+        f"[green]Saved {len(features)} rows to {OUTPUT_PARQUET} and {OUTPUT_CSV}[/green]"
     )
 
 

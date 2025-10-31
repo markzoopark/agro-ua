@@ -29,8 +29,8 @@ def ensure_raw_dir(region_slug: str) -> Path:
     raw_dir = RAW_ROOT / region_slug
     if not raw_dir.exists() or not raw_dir.is_dir():
         raise FileNotFoundError(
-            f"Raw directory '{raw_dir}' не знайдено. "
-            "Скопіюйте CSV у відповідний підкаталог або вкажіть інший slug через --region."
+            f"Raw directory '{raw_dir}' does not exist. "
+            "Copy CSV exports into that folder or provide another slug via --region."
         )
     return raw_dir
 
@@ -41,7 +41,7 @@ def run_subprocess(command: list[str], description: str) -> None:
     try:
         subprocess.run(command, check=True)
     except subprocess.CalledProcessError as exc:
-        raise RuntimeError(f"Команда '{' '.join(command)}' завершилась з помилкою (код {exc.returncode}).") from exc
+        raise RuntimeError(f"Command '{' '.join(command)}' failed with exit code {exc.returncode}.") from exc
 
 
 def parse_languages(languages: str) -> list[str]:
@@ -56,44 +56,44 @@ def pipeline(
     run_figures: bool,
 ) -> None:
     raw_dir = ensure_raw_dir(region)
-    console.rule(f"[bold green]1. Завантаження CSV з {raw_dir}")
+    console.rule(f"[bold green]1. Loading CSVs from {raw_dir}")
     raw_df = io.load_folder(raw_dir)
-    console.print(f"[green]Прочитано {len(raw_df)} рядків з {raw_dir}[/green]")
+    console.print(f"[green]Loaded {len(raw_df)} rows from {raw_dir}[/green]")
 
-    console.rule("[bold green]2. Нормалізація одиниць")
+    console.rule("[bold green]2. Normalising units")
     norm_df = normalize.normalize_units(raw_df)
-    console.print(f"[green]Нормалізовано {len(norm_df)} рядків → data/interim/agrostats_norm.parquet[/green]")
+    console.print(f"[green]Normalised {len(norm_df)} rows → data/interim/agrostats_norm.parquet[/green]")
 
-    console.rule("[bold green]3. Побудова фіч")
+    console.rule("[bold green]3. Building features")
     features_df = features.build_features(norm_df)
     console.print(
-        "[green]Фічі збережено в data/processed/agrostats_poltava_features.parquet "
-        f"({len(features_df)} рядків)[/green]"
+        "[green]Feature set saved to data/processed/agrostats_poltava_features.parquet "
+        f"({len(features_df)} rows)[/green]"
     )
 
-    console.rule("[bold green]4. Перевірка цілісності")
+    console.rule("[bold green]4. Validating integrity")
     success, report, feature_message = validate.validate_agrostats(norm_df)
     console.print(report)
     if not success:
-        raise RuntimeError("Валідація не пройдена. Див. reports/validation.md для подробиць.")
+        raise RuntimeError("Validation failed. See reports/validation.md for details.")
     if feature_message:
         raise RuntimeError(feature_message)
 
-    console.rule("[bold green]5. Навчання моделей")
+    console.rule("[bold green]5. Training models")
     language_list = parse_languages(languages)
     train_languages = ",".join(language_list)
     train.poltava_command(features_path=OUTPUT_PARQUET, languages=train_languages)
 
     if run_baselines:
-        console.rule("[bold green]6. Excel-бейзлайни")
+        console.rule("[bold green]6. Excel baselines")
         run_subprocess([sys.executable, "scripts/baseline_excel.py"], "Excel baselines")
 
     if run_figures:
-        console.rule("[bold green]7. Публікаційні графіки")
+        console.rule("[bold green]7. Publication-ready figures")
         run_subprocess([sys.executable, "scripts/export_article_figures.py"], "Export figures")
 
-    console.rule("[bold green]Готово")
-    console.print("[bold green]Усі артефакти сформовано в каталозі reports/[/bold green]")
+    console.rule("[bold green]Done")
+    console.print("[bold green]All artefacts generated under reports/[/bold green]")
 
 
 @app.command()
@@ -108,20 +108,20 @@ def main(
         "uk,en",
         "--languages",
         "-l",
-        help="Кома-розділений список мов для графіків/звіту (наприклад, 'uk,en').",
+        help="Comma-separated list of languages for plots/reports (e.g. 'uk,en').",
     ),
     skip_baselines: bool = typer.Option(
         False,
         "--skip-baselines",
-        help="Не запускати Excel-порівняння (scripts/baseline_excel.py).",
+        help="Skip running the Excel baseline comparison (scripts/baseline_excel.py).",
     ),
     skip_figures: bool = typer.Option(
         False,
         "--skip-figures",
-        help="Не перевідмалювати фінальні графіки (scripts/export_article_figures.py).",
+        help="Skip regenerating publication figures (scripts/export_article_figures.py).",
     ),
 ) -> None:
-    """Запустити весь конвеєр (інжест → нормалізація → фічі → валідація → моделі → звіти)."""
+    """Run the full pipeline (ingest → normalise → features → validate → models → reports)."""
     pipeline(
         region=region,
         languages=languages,

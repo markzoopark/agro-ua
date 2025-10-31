@@ -141,7 +141,7 @@ def detect_yield_outliers(df: pd.DataFrame) -> pd.DataFrame:
 def dataframe_to_markdown(df: pd.DataFrame) -> str:
     """Convert a dataframe to a markdown-friendly table."""
     if df.empty:
-        return "_Нет записей._"
+        return "_No records._"
     return df.to_string(index=False)
 
 
@@ -172,7 +172,7 @@ def check_feature_constraints(df: pd.DataFrame) -> List[str]:
     }
     missing = required_columns - set(df.columns)
     if missing:
-        return [f"Відсутні необхідні колонки у фічах: {sorted(missing)}"]
+        return [f"Required feature columns are missing: {sorted(missing)}"]
 
     def check_range(column: str, lower: Optional[float] = None, upper: Optional[float] = None, inclusive: bool = True) -> None:
         series = pd.to_numeric(df[column], errors="coerce")
@@ -190,14 +190,14 @@ def check_feature_constraints(df: pd.DataFrame) -> List[str]:
                 mask |= valid & (series >= upper)
         if mask.any():
             problems = _format_problem_years(df, mask)
-            errors.append(f"{column}: вихід за межі [{lower}, {upper}] — {problems}")
+            errors.append(f"{column}: values outside [{lower}, {upper}] — {problems}")
 
     # Range checks
     check_range("Yield_t_ha", 1, 12, inclusive=True)
     mask_area = pd.to_numeric(df["Area_ha"], errors="coerce") <= 0
     if mask_area.any():
         problems = _format_problem_years(df, mask_area)
-        errors.append(f"Area_ha: непозитивні значення — {problems}")
+        errors.append(f"Area_ha: non-positive values — {problems}")
     check_range("N_kg_ha", 0, 300, inclusive=True)
     check_range("P2O5_kg_ha", 0, 300, inclusive=True)
     check_range("K_kg_ha", 0, 300, inclusive=True)
@@ -208,18 +208,18 @@ def check_feature_constraints(df: pd.DataFrame) -> List[str]:
     for crop in FEATURE_TARGET_CROPS:
         subset = df[df["group_or_crop"] == crop]
         if subset.empty:
-            errors.append(f"Відсутні дані для культури {crop}")
+            errors.append(f"No data available for crop {crop}")
             continue
         years = sorted(int(year) for year in subset["year"].dropna().astype(int))
         expected_years = set(EXPECTED_YEARS)
         actual_years = set(years)
         missing_years = sorted(expected_years - actual_years)
         if missing_years:
-            errors.append(f"{crop}: відсутні роки {missing_years}")
+            errors.append(f"{crop}: missing years {missing_years}")
         duplicates = subset.duplicated(subset=["group_or_crop", "year"], keep=False)
         if duplicates.any():
             dup_years = sorted(set(int(y) for y in subset.loc[duplicates, "year"]))
-            errors.append(f"{crop}: дублікати для років {dup_years}")
+            errors.append(f"{crop}: duplicate entries for years {dup_years}")
 
     return errors
 
@@ -246,10 +246,10 @@ def build_report(
         for issue in year_issues:
             missing_years = ", ".join(str(year) for year in issue["missing_years"])
             lines.append(
-                f"- **{issue['metric']} / {issue['group_or_crop']}** — отсутствуют года: {missing_years}."
+                f"- **{issue['metric']} / {issue['group_or_crop']}** — missing years: {missing_years}."
             )
     else:
-        lines.append("- Все ключевые серии покрывают период 2010–2024 без пропусков.")
+        lines.append("- All key series cover 2010–2024 without gaps.")
 
     lines.extend(
         [
@@ -258,9 +258,9 @@ def build_report(
         ]
     )
     if invalid_units.empty:
-        lines.append("- Все значения unit_norm соответствуют ожидаемым единицам.")
+        lines.append("- All unit_norm values match the allowed units.")
     else:
-        lines.append("- Обнаружены строки с неподдерживаемыми единицами:")
+        lines.append("- Rows with unsupported units were found:")
         lines.append("")
         lines.append("```")
         lines.append(dataframe_to_markdown(invalid_units))
@@ -273,9 +273,9 @@ def build_report(
         ]
     )
     if outliers.empty:
-        lines.append("- Выбросы по урожайности не обнаружены.")
+        lines.append("- No yield outliers detected.")
     else:
-        lines.append("- Найдены потенциальные выбросы:")
+        lines.append("- Potential yield outliers identified:")
         lines.append("")
         lines.append("```")
         lines.append(dataframe_to_markdown(outliers))
@@ -286,7 +286,7 @@ def build_report(
         for err in feature_errors:
             lines.append(f"- {err}")
     else:
-        lines.append("- Перевірки фіч успішно пройдено.")
+        lines.append("- Feature checks passed successfully.")
 
     return "\n".join(lines) + "\n"
 
@@ -319,7 +319,7 @@ def validate_agrostats(df: pd.DataFrame) -> Tuple[bool, str]:
         feature_df = pd.read_parquet(FEATURES_PATH)
         feature_errors.extend(check_feature_constraints(feature_df))
     except FileNotFoundError:
-        feature_errors.append(f"Файл з фічами не знайдено: {FEATURES_PATH}")
+        feature_errors.append(f"Feature file not found: {FEATURES_PATH}")
 
     success = not year_issues and invalid_units.empty and not feature_errors
     report = build_report(year_issues, invalid_units, outliers, feature_errors, success)
@@ -340,7 +340,7 @@ def validate_agrostats_command(
     console.print(report)
     status = "green" if success else "red"
     console.print(f"[{status}]Validation {'passed' if success else 'failed'}[/]")
-    console.print(f"Отчет сохранен в {VALIDATION_REPORT_PATH}")
+    console.print(f"Report saved to {VALIDATION_REPORT_PATH}")
     if feature_message:
         console.print(f"[red]{feature_message}[/red]")
         raise AssertionError(feature_message)

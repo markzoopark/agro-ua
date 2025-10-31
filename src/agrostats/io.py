@@ -17,7 +17,7 @@ from agrostats import utils
 
 
 console = Console()
-app = typer.Typer(help="Работа с исходными CSV AgroStats.")
+app = typer.Typer(help="Utilities for working with raw AgroStats CSV exports.")
 
 
 FILE_PATTERN = re.compile(
@@ -55,13 +55,13 @@ def _infer_unit(metric: str, group_or_crop: Optional[str], fert_type: Optional[s
             return "тис. т" if is_all else "кг K2O/га"
         if fert_type == "Органічні":
             return "тис. т" if is_all else "тис. га"
-    raise ValueError(f"Не удалось определить unit_raw для сочетания metric={metric}, fert_type={fert_type}.")
+    raise ValueError(f"Unable to infer unit_raw for metric={metric}, fert_type={fert_type}.")
 
 
 def _parse_metadata(path: Path) -> Dict[str, Optional[str]]:
     match = FILE_PATTERN.match(path.name)
     if not match:
-        raise ValueError(f"Имя файла не соответствует ожидаемому шаблону: {path.name}")
+        raise ValueError(f"File name does not match expected pattern: {path.name}")
     data = match.groupdict()
     data["region"] = data["region"].strip()
     data["metric"] = data["metric"].strip()
@@ -109,10 +109,10 @@ def _detect_columns(df: pd.DataFrame) -> tuple[str, str]:
 
 
 def read_agrostats_csv(path: Path) -> pd.DataFrame:
-    """Прочитать CSV AgroStats и дополнить метаданными из имени файла."""
+    """Read an AgroStats CSV file and enrich it with metadata parsed from the filename."""
     raw_df = pd.read_csv(path, dtype=str)
     if raw_df.empty:
-        raise ValueError(f"Файл {path} не содержит данных.")
+        raise ValueError(f"File {path} does not contain any data.")
 
     year_column, value_column = _detect_columns(raw_df)
 
@@ -164,20 +164,20 @@ DEFAULT_RAW_DIR = Path("data/raw/agrostats") / DEFAULT_REGION_SLUG
 
 
 def load_folder(raw_dir: Path = DEFAULT_RAW_DIR) -> pd.DataFrame:
-    """Собрать все выгрузки AgroStats в один датафрейм и сохранить в parquet."""
+    """Load all AgroStats exports from a folder into a single dataframe and persist to parquet."""
     csv_files = sorted(raw_dir.glob("*.csv"))
     if not csv_files:
-        raise FileNotFoundError(f"В каталоге {raw_dir} не найдено CSV-файлов.")
+        raise FileNotFoundError(f"No CSV files were found in {raw_dir}.")
 
     frames = []
-    for csv_path in track(csv_files, description="Чтение файлов AgroStats"):
+    for csv_path in track(csv_files, description="Reading AgroStats files"):
         if not FILE_PATTERN.match(csv_path.name):
-            console.log(f"[yellow]Пропуск файла, имя не по шаблону: {csv_path.name}[/yellow]")
+            console.log(f"[yellow]Skipping file with unexpected name: {csv_path.name}[/yellow]")
             continue
         try:
             frame = read_agrostats_csv(csv_path)
         except Exception as exc:  # noqa: BLE001
-            console.log(f"[red]Ошибка при чтении {csv_path.name}: {exc}[/red]")
+            console.log(f"[red]Failed to read {csv_path.name}: {exc}[/red]")
             raise
         frames.append(frame)
 
@@ -187,14 +187,14 @@ def load_folder(raw_dir: Path = DEFAULT_RAW_DIR) -> pd.DataFrame:
     duplicates_mask = combined.duplicated(subset=key_columns, keep=False)
     if duplicates_mask.any():
         dup_records = combined.loc[duplicates_mask, key_columns + ["source_path"]]
-        console.log("[red]Обнаружены дублирующиеся записи:[/red]")
+        console.log("[red]Duplicate records detected:[/red]")
         console.log(dup_records)
-        raise ValueError("Есть дубли по ключу (region, year, metric, group_or_crop, fert_type).")
+        raise ValueError("Duplicates found for key (region, year, metric, group_or_crop, fert_type).")
 
     output_path = Path("data/interim/agrostats_raw.parquet")
     utils.ensure_directories([output_path.parent])
     combined.to_parquet(output_path, index=False)
-    console.log(f"[green]Сохранено {len(combined)} строк в {output_path}[/green]")
+    console.log(f"[green]Saved {len(combined)} rows to {output_path}[/green]")
     return combined
 
 
@@ -243,7 +243,7 @@ def split_command(
 def load_folder_command(
     raw_dir: Path = typer.Argument(DEFAULT_RAW_DIR, exists=True, dir_okay=True),
 ) -> None:
-    """CLI-обертка для load_folder."""
+    """CLI wrapper for load_folder."""
     df = load_folder(raw_dir)
     console.print(df.head())
 
