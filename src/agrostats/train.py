@@ -20,7 +20,7 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
-from agrostats import utils
+from agrostats import utils, eda
 
 
 console = Console()
@@ -46,6 +46,48 @@ MANUAL_SLUGS = {
 SCENARIOS = ("lag_only", "in_season")
 LAG_FEATURE_SUFFIX = "_lag1"
 MA_PREFIX = "ma5_"
+
+CROP_NAME_TRANSLATIONS = {
+    "uk": {
+        "Пшениця": "Пшениця",
+        "Кукурудза": "Кукурудза",
+        "Соняшник": "Соняшник",
+    },
+    "en": {
+        "Пшениця": "Wheat",
+        "Кукурудза": "Corn",
+        "Соняшник": "Sunflower",
+    },
+}
+
+TRAIN_LANG = {
+    "uk": {
+        "legend_actual": "Факт",
+        "legend_pred": "Прогноз",
+        "year_label": "Рік",
+        "yield_label": "Урожайність, т/га",
+        "actual_title": "Факт vs прогноз (test) — {crop} ({model})",
+        "scatter_x": "Факт (т/га)",
+        "scatter_y": "Прогноз (т/га)",
+        "scatter_title": "{crop} ({model}) — MAE={mae:.2f}, MAPE={mape:.1f}%",
+        "shap_title": "SHAP топ-10 ознак — {crop} ({model})",
+        "shap_xlabel": "Mean |SHAP|",
+        "shap_ylabel": "Ознака",
+    },
+    "en": {
+        "legend_actual": "Actual",
+        "legend_pred": "Prediction",
+        "year_label": "Year",
+        "yield_label": "Yield, t/ha",
+        "actual_title": "Actual vs forecast (test) — {crop} ({model})",
+        "scatter_x": "Actual (t/ha)",
+        "scatter_y": "Prediction (t/ha)",
+        "scatter_title": "{crop} ({model}) — MAE={mae:.2f}, MAPE={mape:.1f}%",
+        "shap_title": "SHAP top-10 features — {crop} ({model})",
+        "shap_xlabel": "Mean |SHAP|",
+        "shap_ylabel": "Feature",
+    },
+}
 
 
 @dataclass
@@ -246,7 +288,17 @@ def aggregate_metrics(metrics_df: pd.DataFrame) -> pd.DataFrame:
     return pd.concat([metrics_df, grouped], ignore_index=True, sort=False)
 
 
-def plot_actual_vs_predicted(metrics_df: pd.DataFrame, crop: str, model: str, scenario: str) -> None:
+def plot_actual_vs_predicted(
+    metrics_df: pd.DataFrame,
+    crop: str,
+    model: str,
+    scenario: str,
+    language: str,
+) -> None:
+    if language not in TRAIN_LANG:
+        raise ValueError(f"Unsupported language: {language}")
+    lang_cfg = TRAIN_LANG[language]
+    crop_label = CROP_NAME_TRANSLATIONS.get(language, {}).get(crop, crop)
     subset = metrics_df[
         (metrics_df["crop"] == crop)
         & (metrics_df["model"] == model)
@@ -258,23 +310,34 @@ def plot_actual_vs_predicted(metrics_df: pd.DataFrame, crop: str, model: str, sc
     subset = subset.sort_values("year")
 
     fig, ax = plt.subplots(figsize=(8, 4))
-    ax.plot(subset["year"], subset["actual"], marker="o", label="Факт")
-    ax.plot(subset["year"], subset["predicted"], marker="o", label="Прогноз")
-    ax.set_title(f"Факт vs прогноз (test) — {crop} ({model})")
-    ax.set_xlabel("Рік")
-    ax.set_ylabel("Урожайність, t/ha")
+    ax.plot(subset["year"], subset["actual"], marker="o", label=lang_cfg["legend_actual"])
+    ax.plot(subset["year"], subset["predicted"], marker="o", label=lang_cfg["legend_pred"])
+    ax.set_title(lang_cfg["actual_title"].format(crop=crop_label, model=model))
+    ax.set_xlabel(lang_cfg["year_label"])
+    ax.set_ylabel(lang_cfg["yield_label"])
     ax.grid(True, alpha=0.3)
     ax.legend()
-    FIGURES_DIR.mkdir(parents=True, exist_ok=True)
+    fig_dir = FIGURES_DIR / language
+    fig_dir.mkdir(parents=True, exist_ok=True)
     fig.savefig(
-        FIGURES_DIR / f"{model}_{slugify(crop)}_{scenario}_actual_vs_pred.png",
+        fig_dir / f"{model}_{slugify(crop)}_{scenario}_actual_vs_pred.png",
         dpi=200,
         bbox_inches="tight",
     )
     plt.close(fig)
 
 
-def plot_scatter_actual_pred(metrics_df: pd.DataFrame, crop: str, model: str, scenario: str) -> None:
+def plot_scatter_actual_pred(
+    metrics_df: pd.DataFrame,
+    crop: str,
+    model: str,
+    scenario: str,
+    language: str,
+) -> None:
+    if language not in TRAIN_LANG:
+        raise ValueError(f"Unsupported language: {language}")
+    lang_cfg = TRAIN_LANG[language]
+    crop_label = CROP_NAME_TRANSLATIONS.get(language, {}).get(crop, crop)
     subset = metrics_df[
         (metrics_df["crop"] == crop)
         & (metrics_df["model"] == model)
@@ -297,15 +360,16 @@ def plot_scatter_actual_pred(metrics_df: pd.DataFrame, crop: str, model: str, sc
     fig, ax = plt.subplots(figsize=(5, 5))
     ax.scatter(y_true, y_pred, color="#1f77b4", edgecolor="black")
     ax.plot(line, line, color="red", linestyle="--", label="y = x")
-    ax.set_xlabel("Факт (t/ha)")
-    ax.set_ylabel("Прогноз (t/ha)")
-    ax.set_title(f"{crop} ({model}) — MAE={mae:.2f}, MAPE={mape:.1f}%")
+    ax.set_xlabel(lang_cfg["scatter_x"])
+    ax.set_ylabel(lang_cfg["scatter_y"])
+    ax.set_title(lang_cfg["scatter_title"].format(crop=crop_label, model=model, mae=mae, mape=mape))
     ax.grid(True, alpha=0.3)
     ax.legend()
 
-    FIGURES_DIR.mkdir(parents=True, exist_ok=True)
+    fig_dir = FIGURES_DIR / language
+    fig_dir.mkdir(parents=True, exist_ok=True)
     fig.savefig(
-        FIGURES_DIR / f"scatter_{model}_{slugify(crop)}_{scenario}_test.png",
+        fig_dir / f"scatter_{model}_{slugify(crop)}_{scenario}_test.png",
         dpi=200,
         bbox_inches="tight",
     )
@@ -350,7 +414,18 @@ def train_for_shap(model_name: str, dataset: CropDataset) -> Optional[Tuple[obje
     return model, X_test
 
 
-def plot_shap_importance(model: object, X_data: pd.DataFrame, model_name: str, crop: str, scenario: str) -> None:
+def plot_shap_importance(
+    model: object,
+    X_data: pd.DataFrame,
+    model_name: str,
+    crop: str,
+    scenario: str,
+    language: str,
+) -> None:
+    if language not in TRAIN_LANG:
+        raise ValueError(f"Unsupported language: {language}")
+    lang_cfg = TRAIN_LANG[language]
+    crop_label = CROP_NAME_TRANSLATIONS.get(language, {}).get(crop, crop)
     try:
         explainer = shap.TreeExplainer(model)
         shap_values = explainer.shap_values(X_data)
@@ -373,13 +448,14 @@ def plot_shap_importance(model: object, X_data: pd.DataFrame, model_name: str, c
 
     fig, ax = plt.subplots(figsize=(8, 6))
     top_features.sort_values().plot(kind="barh", ax=ax, color="#2E86AB")
-    ax.set_title(f"SHAP топ-10 признаков — {crop} ({model_name})")
-    ax.set_xlabel("Mean |SHAP|")
-    ax.set_ylabel("Признак")
+    ax.set_title(lang_cfg["shap_title"].format(crop=crop_label, model=model_name))
+    ax.set_xlabel(lang_cfg["shap_xlabel"])
+    ax.set_ylabel(lang_cfg["shap_ylabel"])
     ax.grid(True, axis="x", alpha=0.3)
-    FIGURES_DIR.mkdir(parents=True, exist_ok=True)
+    fig_dir = FIGURES_DIR / language
+    fig_dir.mkdir(parents=True, exist_ok=True)
     fig.savefig(
-        FIGURES_DIR / f"shap_{model_name}_{slugify(crop)}_{scenario}.png",
+        fig_dir / f"shap_{model_name}_{slugify(crop)}_{scenario}.png",
         dpi=200,
         bbox_inches="tight",
     )
@@ -451,8 +527,15 @@ def train_models(
     features_df: pd.DataFrame,
     models: Iterable[str] = ("elasticnet", "xgboost", "lightgbm"),
     scenarios: Iterable[str] = SCENARIOS,
+    languages: Iterable[str] = ("uk", "en"),
 ) -> pd.DataFrame:
     all_records: List[Dict[str, float]] = []
+    language_list = [lang for lang in languages]
+    if not language_list:
+        language_list = ["uk"]
+    for language in language_list:
+        if language not in TRAIN_LANG:
+            raise ValueError(f"Unsupported language: {language}")
 
     for crop in TARGET_CROPS:
         base_dataset = prepare_crop_dataset(features_df, crop)
@@ -475,8 +558,9 @@ def train_models(
 
                 if predictions:
                     metrics_df = pd.DataFrame(predictions)
-                    plot_actual_vs_predicted(metrics_df, crop, model_name, scenario)
-                    plot_scatter_actual_pred(metrics_df, crop, model_name, scenario)
+                    for language in language_list:
+                        plot_actual_vs_predicted(metrics_df, crop, model_name, scenario, language)
+                        plot_scatter_actual_pred(metrics_df, crop, model_name, scenario, language)
 
                 if model_name in {"xgboost", "lightgbm"}:
                     try:
@@ -486,7 +570,8 @@ def train_models(
                         shap_artifacts = None
                     if shap_artifacts:
                         shap_model, shap_X = shap_artifacts
-                        plot_shap_importance(shap_model, shap_X, model_name, crop, scenario)
+                        for language in language_list:
+                            plot_shap_importance(shap_model, shap_X, model_name, crop, scenario, language)
 
     metrics_df = pd.DataFrame(all_records)
     if not metrics_df.empty:
@@ -509,10 +594,19 @@ def train_models(
 
 
 @app.command("poltava")
-def poltava_command(features_path: Path = typer.Option(FEATURES_PATH, exists=True, help="Путь до parquet с фичами.")) -> None:
+def poltava_command(
+    features_path: Path = typer.Option(FEATURES_PATH, exists=True, help="Путь до parquet с фичами."),
+    languages: str = typer.Option("uk,en", help="Кома-розділений список мов для графіків (uk,en)."),
+) -> None:
     """Запустить обучение/оценку моделей по Полтавской области."""
+    language_list = [lang.strip() for lang in languages.split(",") if lang.strip()]
+    if not language_list:
+        language_list = ["uk"]
+    for language in language_list:
+        if language not in TRAIN_LANG:
+            raise ValueError(f"Unsupported language: {language}")
     features_df = load_features(features_path)
-    metrics_df = train_models(features_df)
+    metrics_df = train_models(features_df, languages=language_list)
 
     if metrics_df.empty:
         console.print("[red]Не удалось рассчитать метрики — проверьте данные.[/red]")
@@ -545,6 +639,11 @@ def poltava_command(features_path: Path = typer.Option(FEATURES_PATH, exists=Tru
     metrics_export.columns = [col.lower() for col in metrics_export.columns]
     metrics_export.to_csv(METRICS_PATH, index=False)
     console.print(f"[green]Метрики збережено в {METRICS_PATH}[/green]")
+
+    try:
+        eda.plot_trends(features_df, eda.TARGET_CROPS, language_list)
+    except Exception as exc:
+        console.log(f"[yellow]Не вдалося побудувати тренди: {exc}[/yellow]")
 
     test_predictions = predictions_export[predictions_export["split"] == "test"].copy()
     if not test_predictions.empty:
