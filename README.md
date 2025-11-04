@@ -70,14 +70,14 @@ python scripts/qa_check.py
 
 ### Tabular outputs (under `reports/`)
 
-| File                                     | Description                                                                                            |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------------------ | ---- | -------------------- |
-| `metrics.csv`                            | Row-level metrics (`year`, `crop`, `model`, `scenario`, `split`, `mae`, `rmse`, `mape`, `n_features`). |
-| `predictions.csv`                        | Actual vs predicted (`y_true`, `y_pred`) for all splits.                                               |
-| `metrics_by_scenario.csv`                | Aggregated MAE/RMSE/MAPE and sample count `n` per `(scenario, model, crop)` on test.                   |
-| `metrics_leaderboard.csv`                | Best model per crop (lowest MAE on test).                                                              |
-| `correlations_{crop}.csv`                | Pearson/Spearman correlations (with p-values) of lag factors vs `Yield_t_ha` and `Yield_anom`.         |
-| `shap_top_{model}_{crop}_{scenario}.csv` | Top-10 features ranked by mean                                                                         | SHAP | on the test holdout. |
+| File | Description |
+| --- | --- |
+| `metrics.csv` | Row-level metrics (`year`, `crop`, `model`, `scenario`, `split`, `mae`, `rmse`, `mape`, `n_features`). |
+| `predictions.csv` | Actual vs predicted (`y_true`, `y_pred`) for all splits. |
+| `metrics_by_scenario.csv` | Aggregated MAE/RMSE/MAPE and sample count `n` per `(scenario, model, crop)` on test. |
+| `metrics_leaderboard.csv` | Best model per crop (lowest MAE on test). |
+| `correlations_{crop}.csv` | Pearson/Spearman correlations (with p-values) of lag factors vs `Yield_t_ha` and `Yield_anom`. |
+| `shap_top_{model}_{crop}_{scenario}.csv` | Top-10 features ranked by mean SHAP on the test holdout. |
 
 ### Figures (under `reports/figures/uk/` and `reports/figures/en/`)
 
