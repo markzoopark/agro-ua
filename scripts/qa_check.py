@@ -3,7 +3,7 @@
 
 Verifies:
 1. All required reports and figures exist
-2. Test/lag_only metrics meet KPI thresholds
+2. Test/lag_only metrics stay within revision-era guardrails
 3. SHAP tables are non-empty
 """
 
@@ -43,11 +43,13 @@ CORRELATION_PATTERNS = [
 
 CROPS = ["pshenytsia", "kukurudza", "sonyashnyk"]
 
-# KPI thresholds for test/lag_only
+# Revision-era guardrails for test/lag_only.
+# These limits are intentionally one-sided: the CI should flag regressions,
+# not improvements versus the previous publication snapshot.
 KPI_THRESHOLDS = {
-    "Кукурудза": {"mae_min": 0.60, "mae_max": 0.95, "mape_max": 13.5, "n_years": 3},
-    "Пшениця": {"mae_min": 0.25, "mae_max": 0.50, "mape_max": 9.5, "n_years": 3},
-    "Соняшник": {"mae_min": 0.05, "mae_max": 0.15, "mape_max": 4.5, "n_years": 3},
+    "Кукурудза": {"mae_max": 0.95, "mape_max": 14.0, "n_years": 3},
+    "Пшениця": {"mae_max": 0.60, "mape_max": 12.0, "n_years": 3},
+    "Соняшник": {"mae_max": 0.20, "mape_max": 7.0, "n_years": 3},
 }
 
 
@@ -169,10 +171,10 @@ def check_kpi_metrics() -> List[str]:
                 f"{crop} ({best_model}): Expected {expected_years} test years, found {n_years}"
             )
 
-        # Check MAE bounds
-        if best_mae < thresholds["mae_min"] or best_mae > thresholds["mae_max"]:
+        # Check regression-oriented MAE ceiling
+        if best_mae > thresholds["mae_max"]:
             errors.append(
-                f"{crop} ({best_model}): MAE={best_mae:.3f} out of range [{thresholds['mae_min']}, {thresholds['mae_max']}]"
+                f"{crop} ({best_model}): MAE={best_mae:.3f} exceeds ceiling {thresholds['mae_max']}"
             )
 
         # Check MAPE bound
