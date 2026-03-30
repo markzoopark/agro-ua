@@ -185,8 +185,9 @@ def build_features(df_norm: pd.DataFrame) -> pd.DataFrame:
     ]
 
     for column in factor_columns:
-        lag_column = f"{column}_lag1"
-        features[lag_column] = features.groupby("group_or_crop")[column].shift(1)
+        for lag in (1, 2, 3):
+            lag_column = f"{column}_lag{lag}"
+            features[lag_column] = features.groupby("group_or_crop")[column].shift(lag)
 
     rolling_map = {
         "Yield_t_ha": "ma5_Yield",
@@ -200,9 +201,10 @@ def build_features(df_norm: pd.DataFrame) -> pd.DataFrame:
     }
 
     for source, target in rolling_map.items():
+        # Use only historical information for moving averages to avoid look-ahead leakage.
         features[target] = (
             features.groupby("group_or_crop")[source]
-            .transform(lambda s: s.rolling(window=5, min_periods=5).mean())
+            .transform(lambda s: s.shift(1).rolling(window=5, min_periods=5).mean())
         )
 
     features["Yield_anom"] = features["Yield_t_ha"] - features["ma5_Yield"]
@@ -221,7 +223,8 @@ def build_features(df_norm: pd.DataFrame) -> pd.DataFrame:
         "Irrig_m3_ha",
         "Irrig_mm",
     ]
-    output_columns.extend([f"{col}_lag1" for col in factor_columns])
+    for lag in (1, 2, 3):
+        output_columns.extend([f"{col}_lag{lag}" for col in factor_columns])
     output_columns.extend(rolling_map.values())
     output_columns.append("Yield_anom")
 

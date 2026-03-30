@@ -16,6 +16,10 @@ checklist_images/
 extract_docx.py
 extract_media.py
 list_docx.py
+tmp/docs/
+scripts/update_manuscript_uk_revision.py
+scripts/create_revision_package_docs.py
+scripts/revision_analyses.py
 
 # Local publication figure assemblies not tracked in repo
 reports/figures_article/en/acf_pacf_crops.png

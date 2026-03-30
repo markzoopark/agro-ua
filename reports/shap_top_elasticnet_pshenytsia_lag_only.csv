@@ -1,0 +1,11 @@
+feature,mean_abs_shap
+N_kg_ha_lag1,0.16806348218523529
+ma5_Yield,0.1247569511574178
+ma5_Org,0.1031441592746883
+K_kg_ha_lag1,0.0766807083901231
+Area_ha_lag1,0.03002542392164621
+P2O5_kg_ha_lag1,0.02649251360194808
+Yield_t_ha_lag1,0.0
+ma5_P2O5,0.0
+ma5_Irrig_m3,0.0
+ma5_MineralShare,0.0

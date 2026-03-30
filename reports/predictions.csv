@@ -1,109 +1,109 @@
-year,crop,model,scenario,split,y_true,y_pred
-2019,Пшениця,elasticnet,lag_only,validation,4.8,3.9167043146602776
-2020,Пшениця,elasticnet,lag_only,validation,4.4799999999999995,4.452502627486422
-2021,Пшениця,elasticnet,lag_only,validation,4.83,4.580114489556355
-2022,Пшениця,elasticnet,lag_only,test,4.13,4.6441243357596065
-2023,Пшениця,elasticnet,lag_only,test,5.09,3.979768821217372
-2024,Пшениця,elasticnet,lag_only,test,4.75,4.708167924959631
-2019,Пшениця,xgboost,lag_only,validation,4.8,4.201770305633545
-2020,Пшениця,xgboost,lag_only,validation,4.4799999999999995,4.379242897033691
-2021,Пшениця,xgboost,lag_only,validation,4.83,4.339289665222168
-2022,Пшениця,xgboost,lag_only,test,4.13,4.543445587158203
-2023,Пшениця,xgboost,lag_only,test,5.09,4.374388217926025
-2024,Пшениця,xgboost,lag_only,test,4.75,3.69773530960083
-2019,Пшениця,lightgbm,lag_only,validation,4.8,4.043990951214524
-2020,Пшениця,lightgbm,lag_only,validation,4.4799999999999995,4.285871332428215
-2021,Пшениця,lightgbm,lag_only,validation,4.83,4.555649473944107
-2022,Пшениця,lightgbm,lag_only,test,4.13,4.453488102959114
-2023,Пшениця,lightgbm,lag_only,test,5.09,4.516891390455473
-2024,Пшениця,lightgbm,lag_only,test,4.75,4.587257538943074
-2019,Пшениця,elasticnet,in_season,validation,4.8,3.6180220970862886
-2020,Пшениця,elasticnet,in_season,validation,4.4799999999999995,4.452258324466647
-2021,Пшениця,elasticnet,in_season,validation,4.83,4.706524847878466
-2022,Пшениця,elasticnet,in_season,test,4.13,4.405337131674869
-2023,Пшениця,elasticnet,in_season,test,5.09,3.4092463504868658
-2024,Пшениця,elasticnet,in_season,test,4.75,4.560436680594921
-2019,Пшениця,xgboost,in_season,validation,4.8,4.067762851715088
-2020,Пшениця,xgboost,in_season,validation,4.4799999999999995,4.184972286224365
-2021,Пшениця,xgboost,in_season,validation,4.83,4.538792133331299
-2022,Пшениця,xgboost,in_season,test,4.13,4.600745677947998
-2023,Пшениця,xgboost,in_season,test,5.09,3.016371250152588
-2024,Пшениця,xgboost,in_season,test,4.75,3.5980615615844727
-2019,Пшениця,lightgbm,in_season,validation,4.8,4.10813299828889
-2020,Пшениця,lightgbm,in_season,validation,4.4799999999999995,4.4976664106954996
-2021,Пшениця,lightgbm,in_season,validation,4.83,4.52609576581439
-2022,Пшениця,lightgbm,in_season,test,4.13,4.802959360160587
-2023,Пшениця,lightgbm,in_season,test,5.09,3.568283616117924
-2024,Пшениця,lightgbm,in_season,test,4.75,4.532581347184628
-2019,Кукурудза,elasticnet,lag_only,validation,6.9799999999999995,8.427854761166582
-2020,Кукурудза,elasticnet,lag_only,validation,5.4799999999999995,7.222595004076577
-2021,Кукурудза,elasticnet,lag_only,validation,6.790000000000001,5.912917977756945
-2022,Кукурудза,elasticnet,lag_only,test,7.24,7.74841195485501
-2023,Кукурудза,elasticnet,lag_only,test,7.790000000000001,8.768749540262517
-2024,Кукурудза,elasticnet,lag_only,test,5.71,9.776878825965845
-2019,Кукурудза,xgboost,lag_only,validation,6.9799999999999995,6.350472927093506
-2020,Кукурудза,xgboost,lag_only,validation,5.4799999999999995,7.279706001281738
-2021,Кукурудза,xgboost,lag_only,validation,6.790000000000001,7.119625568389893
-2022,Кукурудза,xgboost,lag_only,test,7.24,6.94491720199585
-2023,Кукурудза,xgboost,lag_only,test,7.790000000000001,7.09884786605835
-2024,Кукурудза,xgboost,lag_only,test,5.71,7.011857986450195
-2019,Кукурудза,lightgbm,lag_only,validation,6.9799999999999995,7.464809314997637
-2020,Кукурудза,lightgbm,lag_only,validation,5.4799999999999995,7.255003184970194
-2021,Кукурудза,lightgbm,lag_only,validation,6.790000000000001,5.781147568610433
-2022,Кукурудза,lightgbm,lag_only,test,7.24,5.869091194984921
-2023,Кукурудза,lightgbm,lag_only,test,7.790000000000001,7.208578647760174
-2024,Кукурудза,lightgbm,lag_only,test,5.71,7.444649402745261
-2019,Кукурудза,elasticnet,in_season,validation,6.9799999999999995,8.494524226755995
-2020,Кукурудза,elasticnet,in_season,validation,5.4799999999999995,7.9472210278274265
-2021,Кукурудза,elasticnet,in_season,validation,6.790000000000001,5.313229877349498
-2022,Кукурудза,elasticnet,in_season,test,7.24,7.35820090857167
-2023,Кукурудза,elasticnet,in_season,test,7.790000000000001,9.21956837145385
-2024,Кукурудза,elasticnet,in_season,test,5.71,8.527679514712032
-2019,Кукурудза,xgboost,in_season,validation,6.9799999999999995,7.618716239929199
-2020,Кукурудза,xgboost,in_season,validation,5.4799999999999995,6.956944465637207
-2021,Кукурудза,xgboost,in_season,validation,6.790000000000001,6.43776273727417
-2022,Кукурудза,xgboost,in_season,test,7.24,6.431607723236084
-2023,Кукурудза,xgboost,in_season,test,7.790000000000001,6.663232326507568
-2024,Кукурудза,xgboost,in_season,test,5.71,7.941804885864258
-2019,Кукурудза,lightgbm,in_season,validation,6.9799999999999995,7.363526503613042
-2020,Кукурудза,lightgbm,in_season,validation,5.4799999999999995,6.522830798394959
-2021,Кукурудза,lightgbm,in_season,validation,6.790000000000001,5.502378031494653
-2022,Кукурудза,lightgbm,in_season,test,7.24,5.731036690864038
-2023,Кукурудза,lightgbm,in_season,test,7.790000000000001,5.110838811978674
-2024,Кукурудза,lightgbm,in_season,test,5.71,7.29833082515031
-2019,Соняшник,elasticnet,lag_only,validation,3.0300000000000002,2.70136474539305
-2020,Соняшник,elasticnet,lag_only,validation,2.54,2.8583786173473547
-2021,Соняшник,elasticnet,lag_only,validation,2.57,2.7306986914183584
-2022,Соняшник,elasticnet,lag_only,test,2.81,2.736954137736257
-2023,Соняшник,elasticnet,lag_only,test,2.57,2.5227849835824205
-2024,Соняшник,elasticnet,lag_only,test,2.46,2.3353888648665255
-2019,Соняшник,xgboost,lag_only,validation,3.0300000000000002,2.5474488735198975
-2020,Соняшник,xgboost,lag_only,validation,2.54,2.775733709335327
-2021,Соняшник,xgboost,lag_only,validation,2.57,2.8298213481903076
-2022,Соняшник,xgboost,lag_only,test,2.81,2.8318874835968018
-2023,Соняшник,xgboost,lag_only,test,2.57,2.8058505058288574
-2024,Соняшник,xgboost,lag_only,test,2.46,2.5249884128570557
-2019,Соняшник,lightgbm,lag_only,validation,3.0300000000000002,2.375360153637416
-2020,Соняшник,lightgbm,lag_only,validation,2.54,3.0284061687902604
-2021,Соняшник,lightgbm,lag_only,validation,2.57,2.860013549749067
-2022,Соняшник,lightgbm,lag_only,test,2.81,3.0284690933463723
-2023,Соняшник,lightgbm,lag_only,test,2.57,2.553122471046337
-2024,Соняшник,lightgbm,lag_only,test,2.46,2.6735037504861445
-2019,Соняшник,elasticnet,in_season,validation,3.0300000000000002,2.8762826068656686
-2020,Соняшник,elasticnet,in_season,validation,2.54,2.7835115125203185
-2021,Соняшник,elasticnet,in_season,validation,2.57,2.800956253524459
-2022,Соняшник,elasticnet,in_season,test,2.81,2.6586594703012536
-2023,Соняшник,elasticnet,in_season,test,2.57,2.567982963830172
-2024,Соняшник,elasticnet,in_season,test,2.46,2.341926026058342
-2019,Соняшник,xgboost,in_season,validation,3.0300000000000002,2.670696496963501
-2020,Соняшник,xgboost,in_season,validation,2.54,2.643695592880249
-2021,Соняшник,xgboost,in_season,validation,2.57,2.688436985015869
-2022,Соняшник,xgboost,in_season,test,2.81,2.6217353343963623
-2023,Соняшник,xgboost,in_season,test,2.57,2.6775333881378174
-2024,Соняшник,xgboost,in_season,test,2.46,2.595733404159546
-2019,Соняшник,lightgbm,in_season,validation,3.0300000000000002,2.4404763049066185
-2020,Соняшник,lightgbm,in_season,validation,2.54,2.653399809698675
-2021,Соняшник,lightgbm,in_season,validation,2.57,2.735925750145155
-2022,Соняшник,lightgbm,in_season,test,2.81,2.5668428338560565
-2023,Соняшник,lightgbm,in_season,test,2.57,2.743624621397084
-2024,Соняшник,lightgbm,in_season,test,2.46,2.736204039569379
+year,crop,model,scenario,lag_config,split,y_true,y_pred,n_features,params_json
+2019,Пшениця,elasticnet,lag_only,L1,validation,4.8,3.8936810148778283,15,"{""alpha"": 0.1, ""l1_ratio"": 0.8}"
+2020,Пшениця,elasticnet,lag_only,L1,validation,4.4799999999999995,4.424850027464954,15,"{""alpha"": 0.1, ""l1_ratio"": 0.8}"
+2021,Пшениця,elasticnet,lag_only,L1,validation,4.83,4.683206923997243,15,"{""alpha"": 0.1, ""l1_ratio"": 0.8}"
+2022,Пшениця,elasticnet,lag_only,L1,test,4.13,4.520942344231528,17,"{""alpha"": 0.1, ""l1_ratio"": 0.8}"
+2023,Пшениця,elasticnet,lag_only,L1,test,5.09,3.923541050937906,17,"{""alpha"": 0.1, ""l1_ratio"": 0.8}"
+2024,Пшениця,elasticnet,lag_only,L1,test,4.75,4.810312413117866,17,"{""alpha"": 0.1, ""l1_ratio"": 0.8}"
+2019,Пшениця,xgboost,lag_only,L1,validation,4.8,4.150882720947266,15,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.1, ""max_depth"": 4, ""n_estimators"": 100, ""subsample"": 0.8}"
+2020,Пшениця,xgboost,lag_only,L1,validation,4.4799999999999995,4.52366304397583,15,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.1, ""max_depth"": 4, ""n_estimators"": 100, ""subsample"": 0.8}"
+2021,Пшениця,xgboost,lag_only,L1,validation,4.83,4.549075603485107,15,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.1, ""max_depth"": 4, ""n_estimators"": 100, ""subsample"": 0.8}"
+2022,Пшениця,xgboost,lag_only,L1,test,4.13,3.877166748046875,17,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.1, ""max_depth"": 4, ""n_estimators"": 100, ""subsample"": 0.8}"
+2023,Пшениця,xgboost,lag_only,L1,test,5.09,3.4819016456604004,17,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.1, ""max_depth"": 4, ""n_estimators"": 100, ""subsample"": 0.8}"
+2024,Пшениця,xgboost,lag_only,L1,test,4.75,4.355981349945068,17,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.1, ""max_depth"": 4, ""n_estimators"": 100, ""subsample"": 0.8}"
+2019,Пшениця,lightgbm,lag_only,L1,validation,4.8,3.96521045985736,15,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.1, ""max_depth"": -1, ""n_estimators"": 300, ""num_leaves"": 15, ""subsample"": 0.8}"
+2020,Пшениця,lightgbm,lag_only,L1,validation,4.4799999999999995,4.3458168139073505,15,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.1, ""max_depth"": -1, ""n_estimators"": 300, ""num_leaves"": 15, ""subsample"": 0.8}"
+2021,Пшениця,lightgbm,lag_only,L1,validation,4.83,4.5663845078708825,15,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.1, ""max_depth"": -1, ""n_estimators"": 300, ""num_leaves"": 15, ""subsample"": 0.8}"
+2022,Пшениця,lightgbm,lag_only,L1,test,4.13,3.2313888057048556,17,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.1, ""max_depth"": -1, ""n_estimators"": 300, ""num_leaves"": 15, ""subsample"": 0.8}"
+2023,Пшениця,lightgbm,lag_only,L1,test,5.09,3.4718633208471106,17,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.1, ""max_depth"": -1, ""n_estimators"": 300, ""num_leaves"": 15, ""subsample"": 0.8}"
+2024,Пшениця,lightgbm,lag_only,L1,test,4.75,4.549337249271092,17,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.1, ""max_depth"": -1, ""n_estimators"": 300, ""num_leaves"": 15, ""subsample"": 0.8}"
+2019,Пшениця,elasticnet,in_season,L1,validation,4.8,3.8336896511951606,39,"{""alpha"": 1.0, ""l1_ratio"": 0.2}"
+2020,Пшениця,elasticnet,in_season,L1,validation,4.4799999999999995,4.303723191742794,41,"{""alpha"": 1.0, ""l1_ratio"": 0.2}"
+2021,Пшениця,elasticnet,in_season,L1,validation,4.83,4.263471323108178,41,"{""alpha"": 1.0, ""l1_ratio"": 0.2}"
+2022,Пшениця,elasticnet,in_season,L1,test,4.13,4.152477017922251,43,"{""alpha"": 1.0, ""l1_ratio"": 0.2}"
+2023,Пшениця,elasticnet,in_season,L1,test,5.09,3.9011883258867868,43,"{""alpha"": 1.0, ""l1_ratio"": 0.2}"
+2024,Пшениця,elasticnet,in_season,L1,test,4.75,4.1652842639748835,43,"{""alpha"": 1.0, ""l1_ratio"": 0.2}"
+2019,Пшениця,xgboost,in_season,L1,validation,4.8,4.136747360229492,39,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.1, ""max_depth"": 2, ""n_estimators"": 300, ""subsample"": 0.8}"
+2020,Пшениця,xgboost,in_season,L1,validation,4.4799999999999995,4.367138862609863,41,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.1, ""max_depth"": 2, ""n_estimators"": 300, ""subsample"": 0.8}"
+2021,Пшениця,xgboost,in_season,L1,validation,4.83,4.574766635894775,41,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.1, ""max_depth"": 2, ""n_estimators"": 300, ""subsample"": 0.8}"
+2022,Пшениця,xgboost,in_season,L1,test,4.13,4.46343469619751,43,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.1, ""max_depth"": 2, ""n_estimators"": 300, ""subsample"": 0.8}"
+2023,Пшениця,xgboost,in_season,L1,test,5.09,3.010897636413574,43,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.1, ""max_depth"": 2, ""n_estimators"": 300, ""subsample"": 0.8}"
+2024,Пшениця,xgboost,in_season,L1,test,4.75,4.523608684539795,43,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.1, ""max_depth"": 2, ""n_estimators"": 300, ""subsample"": 0.8}"
+2019,Пшениця,lightgbm,in_season,L1,validation,4.8,4.0542628142395545,39,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.1, ""max_depth"": -1, ""n_estimators"": 100, ""num_leaves"": 15, ""subsample"": 0.8}"
+2020,Пшениця,lightgbm,in_season,L1,validation,4.4799999999999995,4.580696582632206,41,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.1, ""max_depth"": -1, ""n_estimators"": 100, ""num_leaves"": 15, ""subsample"": 0.8}"
+2021,Пшениця,lightgbm,in_season,L1,validation,4.83,4.432593450324556,41,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.1, ""max_depth"": -1, ""n_estimators"": 100, ""num_leaves"": 15, ""subsample"": 0.8}"
+2022,Пшениця,lightgbm,in_season,L1,test,4.13,4.817205938689465,43,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.1, ""max_depth"": -1, ""n_estimators"": 100, ""num_leaves"": 15, ""subsample"": 0.8}"
+2023,Пшениця,lightgbm,in_season,L1,test,5.09,3.50503997606306,43,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.1, ""max_depth"": -1, ""n_estimators"": 100, ""num_leaves"": 15, ""subsample"": 0.8}"
+2024,Пшениця,lightgbm,in_season,L1,test,4.75,4.920773217903713,43,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.1, ""max_depth"": -1, ""n_estimators"": 100, ""num_leaves"": 15, ""subsample"": 0.8}"
+2019,Кукурудза,elasticnet,lag_only,L1,validation,6.9799999999999995,7.215254143585049,15,"{""alpha"": 1.0, ""l1_ratio"": 0.2}"
+2020,Кукурудза,elasticnet,lag_only,L1,validation,5.4799999999999995,6.67202226809789,15,"{""alpha"": 1.0, ""l1_ratio"": 0.2}"
+2021,Кукурудза,elasticnet,lag_only,L1,validation,6.790000000000001,6.673444004545841,15,"{""alpha"": 1.0, ""l1_ratio"": 0.2}"
+2022,Кукурудза,elasticnet,lag_only,L1,test,7.24,6.2576378031484365,17,"{""alpha"": 1.0, ""l1_ratio"": 0.2}"
+2023,Кукурудза,elasticnet,lag_only,L1,test,7.790000000000001,6.579945988306054,17,"{""alpha"": 1.0, ""l1_ratio"": 0.2}"
+2024,Кукурудза,elasticnet,lag_only,L1,test,5.71,7.145735624072426,17,"{""alpha"": 1.0, ""l1_ratio"": 0.2}"
+2019,Кукурудза,xgboost,lag_only,L1,validation,6.9799999999999995,6.916546821594238,15,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": 2, ""n_estimators"": 100, ""subsample"": 0.8}"
+2020,Кукурудза,xgboost,lag_only,L1,validation,5.4799999999999995,6.2266106605529785,15,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": 2, ""n_estimators"": 100, ""subsample"": 0.8}"
+2021,Кукурудза,xgboost,lag_only,L1,validation,6.790000000000001,7.866199016571045,15,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": 2, ""n_estimators"": 100, ""subsample"": 0.8}"
+2022,Кукурудза,xgboost,lag_only,L1,test,7.24,6.61364221572876,17,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": 2, ""n_estimators"": 100, ""subsample"": 0.8}"
+2023,Кукурудза,xgboost,lag_only,L1,test,7.790000000000001,6.496999740600586,17,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": 2, ""n_estimators"": 100, ""subsample"": 0.8}"
+2024,Кукурудза,xgboost,lag_only,L1,test,5.71,6.9751505851745605,17,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": 2, ""n_estimators"": 100, ""subsample"": 0.8}"
+2019,Кукурудза,lightgbm,lag_only,L1,validation,6.9799999999999995,6.331773487819979,15,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": -1, ""n_estimators"": 100, ""num_leaves"": 15, ""subsample"": 0.8}"
+2020,Кукурудза,lightgbm,lag_only,L1,validation,5.4799999999999995,5.825244551263751,15,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": -1, ""n_estimators"": 100, ""num_leaves"": 15, ""subsample"": 0.8}"
+2021,Кукурудза,lightgbm,lag_only,L1,validation,6.790000000000001,7.084148686282679,15,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": -1, ""n_estimators"": 100, ""num_leaves"": 15, ""subsample"": 0.8}"
+2022,Кукурудза,lightgbm,lag_only,L1,test,7.24,7.100765667247278,17,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": -1, ""n_estimators"": 100, ""num_leaves"": 15, ""subsample"": 0.8}"
+2023,Кукурудза,lightgbm,lag_only,L1,test,7.790000000000001,6.997663650431024,17,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": -1, ""n_estimators"": 100, ""num_leaves"": 15, ""subsample"": 0.8}"
+2024,Кукурудза,lightgbm,lag_only,L1,test,5.71,6.854425837296454,17,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": -1, ""n_estimators"": 100, ""num_leaves"": 15, ""subsample"": 0.8}"
+2019,Кукурудза,elasticnet,in_season,L1,validation,6.9799999999999995,7.299239728511874,39,"{""alpha"": 1.0, ""l1_ratio"": 0.5}"
+2020,Кукурудза,elasticnet,in_season,L1,validation,5.4799999999999995,6.728865022037145,41,"{""alpha"": 1.0, ""l1_ratio"": 0.5}"
+2021,Кукурудза,elasticnet,in_season,L1,validation,6.790000000000001,6.514098920948394,41,"{""alpha"": 1.0, ""l1_ratio"": 0.5}"
+2022,Кукурудза,elasticnet,in_season,L1,test,7.24,6.395036955955201,43,"{""alpha"": 1.0, ""l1_ratio"": 0.5}"
+2023,Кукурудза,elasticnet,in_season,L1,test,7.790000000000001,6.456525679429966,43,"{""alpha"": 1.0, ""l1_ratio"": 0.5}"
+2024,Кукурудза,elasticnet,in_season,L1,test,5.71,6.744926107646234,43,"{""alpha"": 1.0, ""l1_ratio"": 0.5}"
+2019,Кукурудза,xgboost,in_season,L1,validation,6.9799999999999995,7.057765007019043,39,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": 2, ""n_estimators"": 100, ""subsample"": 0.8}"
+2020,Кукурудза,xgboost,in_season,L1,validation,5.4799999999999995,6.731364727020264,41,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": 2, ""n_estimators"": 100, ""subsample"": 0.8}"
+2021,Кукурудза,xgboost,in_season,L1,validation,6.790000000000001,6.967213153839111,41,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": 2, ""n_estimators"": 100, ""subsample"": 0.8}"
+2022,Кукурудза,xgboost,in_season,L1,test,7.24,6.998487949371338,43,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": 2, ""n_estimators"": 100, ""subsample"": 0.8}"
+2023,Кукурудза,xgboost,in_season,L1,test,7.790000000000001,5.891970157623291,43,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": 2, ""n_estimators"": 100, ""subsample"": 0.8}"
+2024,Кукурудза,xgboost,in_season,L1,test,5.71,7.320948123931885,43,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": 2, ""n_estimators"": 100, ""subsample"": 0.8}"
+2019,Кукурудза,lightgbm,in_season,L1,validation,6.9799999999999995,6.1896268988649075,39,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": -1, ""n_estimators"": 100, ""num_leaves"": 15, ""subsample"": 0.8}"
+2020,Кукурудза,lightgbm,in_season,L1,validation,5.4799999999999995,6.776527472045272,41,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": -1, ""n_estimators"": 100, ""num_leaves"": 15, ""subsample"": 0.8}"
+2021,Кукурудза,lightgbm,in_season,L1,validation,6.790000000000001,7.100838742774317,41,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": -1, ""n_estimators"": 100, ""num_leaves"": 15, ""subsample"": 0.8}"
+2022,Кукурудза,lightgbm,in_season,L1,test,7.24,5.665642019907631,43,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": -1, ""n_estimators"": 100, ""num_leaves"": 15, ""subsample"": 0.8}"
+2023,Кукурудза,lightgbm,in_season,L1,test,7.790000000000001,5.17250061524316,43,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": -1, ""n_estimators"": 100, ""num_leaves"": 15, ""subsample"": 0.8}"
+2024,Кукурудза,lightgbm,in_season,L1,test,5.71,7.479259328070494,43,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": -1, ""n_estimators"": 100, ""num_leaves"": 15, ""subsample"": 0.8}"
+2019,Соняшник,elasticnet,lag_only,L1,validation,3.0300000000000002,2.971045341413993,15,"{""alpha"": 0.01, ""l1_ratio"": 0.8}"
+2020,Соняшник,elasticnet,lag_only,L1,validation,2.54,2.596519796681067,15,"{""alpha"": 0.01, ""l1_ratio"": 0.8}"
+2021,Соняшник,elasticnet,lag_only,L1,validation,2.57,2.134442843044397,15,"{""alpha"": 0.01, ""l1_ratio"": 0.8}"
+2022,Соняшник,elasticnet,lag_only,L1,test,2.81,2.17219570249291,17,"{""alpha"": 0.01, ""l1_ratio"": 0.8}"
+2023,Соняшник,elasticnet,lag_only,L1,test,2.57,1.765556577795699,17,"{""alpha"": 0.01, ""l1_ratio"": 0.8}"
+2024,Соняшник,elasticnet,lag_only,L1,test,2.46,2.3967565209750648,17,"{""alpha"": 0.01, ""l1_ratio"": 0.8}"
+2019,Соняшник,xgboost,lag_only,L1,validation,3.0300000000000002,2.498805522918701,15,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": 2, ""n_estimators"": 100, ""subsample"": 0.8}"
+2020,Соняшник,xgboost,lag_only,L1,validation,2.54,2.859941005706787,15,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": 2, ""n_estimators"": 100, ""subsample"": 0.8}"
+2021,Соняшник,xgboost,lag_only,L1,validation,2.57,2.7437849044799805,15,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": 2, ""n_estimators"": 100, ""subsample"": 0.8}"
+2022,Соняшник,xgboost,lag_only,L1,test,2.81,2.6973626613616943,17,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": 2, ""n_estimators"": 100, ""subsample"": 0.8}"
+2023,Соняшник,xgboost,lag_only,L1,test,2.57,2.6777656078338623,17,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": 2, ""n_estimators"": 100, ""subsample"": 0.8}"
+2024,Соняшник,xgboost,lag_only,L1,test,2.46,2.507240056991577,17,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": 2, ""n_estimators"": 100, ""subsample"": 0.8}"
+2019,Соняшник,lightgbm,lag_only,L1,validation,3.0300000000000002,2.5765712889313463,15,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": -1, ""n_estimators"": 100, ""num_leaves"": 15, ""subsample"": 0.8}"
+2020,Соняшник,lightgbm,lag_only,L1,validation,2.54,3.007507636249064,15,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": -1, ""n_estimators"": 100, ""num_leaves"": 15, ""subsample"": 0.8}"
+2021,Соняшник,lightgbm,lag_only,L1,validation,2.57,2.854782719645143,15,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": -1, ""n_estimators"": 100, ""num_leaves"": 15, ""subsample"": 0.8}"
+2022,Соняшник,lightgbm,lag_only,L1,test,2.81,2.7786869418624938,17,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": -1, ""n_estimators"": 100, ""num_leaves"": 15, ""subsample"": 0.8}"
+2023,Соняшник,lightgbm,lag_only,L1,test,2.57,2.592483446959391,17,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": -1, ""n_estimators"": 100, ""num_leaves"": 15, ""subsample"": 0.8}"
+2024,Соняшник,lightgbm,lag_only,L1,test,2.46,2.3897963892338385,17,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": -1, ""n_estimators"": 100, ""num_leaves"": 15, ""subsample"": 0.8}"
+2019,Соняшник,elasticnet,in_season,L1,validation,3.0300000000000002,2.5044444444444443,39,"{""alpha"": 1.0, ""l1_ratio"": 0.5}"
+2020,Соняшник,elasticnet,in_season,L1,validation,2.54,2.557,41,"{""alpha"": 1.0, ""l1_ratio"": 0.5}"
+2021,Соняшник,elasticnet,in_season,L1,validation,2.57,2.555454545454545,41,"{""alpha"": 1.0, ""l1_ratio"": 0.5}"
+2022,Соняшник,elasticnet,in_season,L1,test,2.81,2.5566666666666666,43,"{""alpha"": 1.0, ""l1_ratio"": 0.5}"
+2023,Соняшник,elasticnet,in_season,L1,test,2.57,2.5761538461538462,43,"{""alpha"": 1.0, ""l1_ratio"": 0.5}"
+2024,Соняшник,elasticnet,in_season,L1,test,2.46,2.575714285714286,43,"{""alpha"": 1.0, ""l1_ratio"": 0.5}"
+2019,Соняшник,xgboost,in_season,L1,validation,3.0300000000000002,2.7563984394073486,39,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.1, ""max_depth"": 4, ""n_estimators"": 100, ""subsample"": 0.8}"
+2020,Соняшник,xgboost,in_season,L1,validation,2.54,2.669733762741089,41,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.1, ""max_depth"": 4, ""n_estimators"": 100, ""subsample"": 0.8}"
+2021,Соняшник,xgboost,in_season,L1,validation,2.57,2.6109354496002197,41,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.1, ""max_depth"": 4, ""n_estimators"": 100, ""subsample"": 0.8}"
+2022,Соняшник,xgboost,in_season,L1,test,2.81,2.5429189205169678,43,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.1, ""max_depth"": 4, ""n_estimators"": 100, ""subsample"": 0.8}"
+2023,Соняшник,xgboost,in_season,L1,test,2.57,2.6528706550598145,43,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.1, ""max_depth"": 4, ""n_estimators"": 100, ""subsample"": 0.8}"
+2024,Соняшник,xgboost,in_season,L1,test,2.46,2.540621042251587,43,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.1, ""max_depth"": 4, ""n_estimators"": 100, ""subsample"": 0.8}"
+2019,Соняшник,lightgbm,in_season,L1,validation,3.0300000000000002,2.771535206398014,39,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": -1, ""n_estimators"": 100, ""num_leaves"": 15, ""subsample"": 0.8}"
+2020,Соняшник,lightgbm,in_season,L1,validation,2.54,2.9619086382212116,41,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": -1, ""n_estimators"": 100, ""num_leaves"": 15, ""subsample"": 0.8}"
+2021,Соняшник,lightgbm,in_season,L1,validation,2.57,2.512799759452886,41,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": -1, ""n_estimators"": 100, ""num_leaves"": 15, ""subsample"": 0.8}"
+2022,Соняшник,lightgbm,in_season,L1,test,2.81,2.6535789725293077,43,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": -1, ""n_estimators"": 100, ""num_leaves"": 15, ""subsample"": 0.8}"
+2023,Соняшник,lightgbm,in_season,L1,test,2.57,2.394970456479505,43,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": -1, ""n_estimators"": 100, ""num_leaves"": 15, ""subsample"": 0.8}"
+2024,Соняшник,lightgbm,in_season,L1,test,2.46,2.5961772691497984,43,"{""colsample_bytree"": 0.8, ""learning_rate"": 0.03, ""max_depth"": -1, ""n_estimators"": 100, ""num_leaves"": 15, ""subsample"": 0.8}"

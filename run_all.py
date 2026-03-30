@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import subprocess
 import sys
 from pathlib import Path
 # Ensure src/ is on sys.path so `agrostats` package is importable.
@@ -15,7 +14,7 @@ import typer
 from rich.console import Console
 
 from agrostats.features import OUTPUT_PARQUET
-from agrostats import features, io, normalize, train, validate
+from agrostats import article_figures, baselines, features, io, normalize, revision, train, validate
 
 
 app = typer.Typer(help="Run the full AgroStats pipeline with a single command.")
@@ -33,15 +32,6 @@ def ensure_raw_dir(region_slug: str) -> Path:
             "Copy CSV exports into that folder or provide another slug via --region."
         )
     return raw_dir
-
-
-def run_subprocess(command: list[str], description: str) -> None:
-    console.rule(f"[bold blue]{description}")
-    console.print(f"[cyan]$ {' '.join(command)}[/cyan]")
-    try:
-        subprocess.run(command, check=True)
-    except subprocess.CalledProcessError as exc:
-        raise RuntimeError(f"Command '{' '.join(command)}' failed with exit code {exc.returncode}.") from exc
 
 
 def parse_languages(languages: str) -> list[str]:
@@ -86,11 +76,14 @@ def pipeline(
 
     if run_baselines:
         console.rule("[bold green]6. Excel baselines")
-        run_subprocess([sys.executable, "scripts/baseline_excel.py"], "Excel baselines")
+        baselines.main()
 
     if run_figures:
-        console.rule("[bold green]7. Publication-ready figures")
-        run_subprocess([sys.executable, "scripts/export_article_figures.py"], "Export figures")
+        console.rule("[bold green]7. Revision analyses")
+        revision.main()
+
+        console.rule("[bold green]8. Publication-ready figures")
+        article_figures.main()
 
     console.rule("[bold green]Done")
     console.print("[bold green]All artefacts generated under reports/[/bold green]")
