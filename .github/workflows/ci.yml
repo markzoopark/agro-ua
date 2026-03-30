@@ -85,6 +85,10 @@ jobs:
       run: |
         python scripts/qa_check.py
 
+    - name: Run unit tests
+      run: |
+        python -m pytest -q
+
     - name: Upload reports
       if: always()
       uses: actions/upload-artifact@v4
