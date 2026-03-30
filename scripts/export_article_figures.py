@@ -183,7 +183,7 @@ def plot_trends(features: pd.DataFrame, languages: Iterable[str]) -> None:
 
     for lang in languages:
         cfg = LANG_CONFIG[lang]
-        fig, axes = plt.subplots(2, 3, figsize=(18, 8), sharex=True)
+        fig, axes = plt.subplots(2, 3, figsize=(18, 8))
         axes = axes.flatten()
         for ax, column in zip(axes, TREND_COLUMNS):
             title, unit = cfg["trends"][column]
