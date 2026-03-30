@@ -1,3 +1,28 @@
 .DS_Store
 .pytest_cache/
 __pycache__/
+
+# Local article drafts and helper exports
+article_eng.txt
+article_v2.txt
+article_v2_latest.txt
+revised_article.md
+revised_article_v3.md
+polished_long_article.md
+polished_long_article_final.md
+checklist_dump.txt
+article_images/
+checklist_images/
+extract_docx.py
+extract_media.py
+list_docx.py
+
+# Local publication figure assemblies not tracked in repo
+reports/figures_article/en/acf_pacf_crops.png
+reports/figures_article/en/corr_heatmap_lagged_factors.png
+reports/figures_article/en/correlation_heatmap_panel.png
+reports/figures_article/en/mae_by_method_bars.png
+reports/figures_article/en/scatter_panel.png
+reports/figures_article/en/shap_panel.png
+reports/figures_article/en/shap_top10_bars.png
+reports/figures_article/en/yield_predictions_panel.png
