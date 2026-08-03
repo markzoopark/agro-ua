@@ -13,9 +13,10 @@ This repository hosts a reproducible pipeline for forecasting crop yields in Pol
 -   **Modelling scenarios.**
     -   `lag_only` – only historical predictors available before harvest; this is the main, leakage-safe scenario.
     -   `in_season` – includes current-season values and is kept only as a comparison scenario.
--   **Models.** ElasticNet, XGBoost, and LightGBM with constrained hyperparameter tuning on an origin-expanding split: train ≤ 2018, validation 2019–2021, test 2022–2024.
+-   **Models.** ElasticNet, XGBoost, and LightGBM with constrained hyperparameter tuning on an origin-expanding split: train ≤ 2018, validation 2019–2021, test 2022–2024. For each forecast year, its yield is hidden; previously completed years enter the next expanding training window.
 -   **Baselines.** Naive (`t-1`), linear trend (`FORECAST.LINEAR` analogue), `LINEST + lags`, and `ARIMA`.
--   **Revision outputs.** The main pipeline also exports lag sensitivity, robustness evaluation for 2020–2024, climate sensitivity with NASA POWER seasonal aggregates, variable summary tables, maize diagnostics, and publication-ready article figures.
+-   **Evaluation outputs.** The pipeline keeps three stages separate: hyperparameters are tuned on validation, `metrics_leaderboard.csv` is a descriptive comparison on the observed Test window, and `validation_selected_test_metrics.csv` reports the stricter prospective choice made without Test-based model selection.
+-   **Supplementary outputs.** The main pipeline exports lag and climate sensitivity, variable summaries, maize diagnostics, and publication-ready figures. The overlapping 2020–2024 robustness check is post-hoc descriptive and is generated only with `--include-post-hoc-robustness`.
 
 ---
 
@@ -76,14 +77,16 @@ python -m src.agrostats.train --languages uk,en
 | `metrics.csv` | Row-level metrics (`year`, `crop`, `model`, `scenario`, `split`, `mae`, `rmse`, `mape`, `n_features`). |
 | `predictions.csv` | Actual vs predicted (`y_true`, `y_pred`) for all splits. |
 | `metrics_by_scenario.csv` | Aggregated MAE/RMSE/MAPE and sample count `n` per `(scenario, model, crop)` on test. |
-| `metrics_leaderboard.csv` | Best model per crop (lowest MAE on test). |
+| `metrics_leaderboard.csv` | Publication snapshot: lowest observed Test MAE among the pre-specified ML candidates (descriptive, not prospective selection). |
 | `metrics_baselines.csv` | Year-level predictions and errors for naive, linear trend, `LINEST + lags`, and `ARIMA`. |
 | `metrics_baselines_summary.csv` | Test-window summary of baseline performance by crop. |
+| `validation_selected_test_metrics.csv` | Separate ML and baseline methods selected only by 2019–2021 Validation MAE, with their untouched 2022–2024 Test metrics. |
 | `metrics_arima.csv` | Extract of the year-level `ARIMA` results with selected `(p, d, q)` orders. |
 | `tuned_hyperparameters.csv` | Selected hyperparameters for every `(crop, scenario, model)` combination. |
 | `lag_sensitivity.csv` | Sensitivity analysis for `L1`, `L1+L2`, and `L1+L2+L3` lag structures. |
-| `robustness_2020_2024.csv` | Expanding-window robustness comparison over the longer 2020–2024 window. |
-| `climate_sensitivity.csv` | Agro-only versus agro+climate comparison using NASA POWER seasonal aggregates. |
+| `robustness_2020_2024.csv` | Optional post-hoc descriptive comparison over the overlapping 2020–2024 window; generated only with `--include-post-hoc-robustness`. |
+| `climate_sensitivity.csv` | Post-hoc descriptive Test comparison of agro-only versus agro+climate candidates using NASA POWER seasonal aggregates. |
+| `climate_sensitivity_validation_selected.csv` | Strict climate sensitivity: candidate model selected by Validation, then evaluated on Test. |
 | `variable_summary.csv` | Descriptive statistics, units, and timing for the model input variables. |
 | `maize_diagnostics.csv` | Year-level maize errors and feature-group ablation diagnostics. |
 | `correlations_{crop}.csv` | Pearson/Spearman correlations (with p-values) of lag factors vs `Yield_t_ha` and `Yield_anom`. |
@@ -113,6 +116,12 @@ Under `reports/figures_article/{uk,en}/`, the pipeline also exports manuscript-r
 | Sunflower (Соняшник) | 0.05 – 0.15       |
 
 These ranges are indicative only. The revision-ready workflow reports the actual model ranking directly from generated CSV artefacts, including cases where a baseline remains stronger than tuned ML on the narrow 2022–2024 window.
+
+### How to read the evaluation files
+
+`tuned_hyperparameters.csv` records hyperparameter choices made from the 2019–2021 Validation window. `metrics_leaderboard.csv` then preserves the accepted article's retrospective comparison of the pre-specified machine-learning candidates on 2022–2024; it is descriptive evidence, not a prospective deployment rule. For a Test-independent method choice, use `validation_selected_test_metrics.csv`. The same distinction applies to the two climate-sensitivity files.
+
+The Test set is rolling-origin. The yield for the year being forecast is always withheld, while a completed earlier Test year becomes historical information for the next forecast. With only three Test years, the reports are a small-sample benchmark rather than a production forecasting guarantee.
 
 ---
 

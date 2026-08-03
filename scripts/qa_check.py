@@ -22,6 +22,9 @@ REQUIRED_FILES = [
     "reports/predictions.csv",
     "reports/metrics_by_scenario.csv",
     "reports/metrics_leaderboard.csv",
+    "reports/metrics_baselines_summary.csv",
+    "reports/validation_selected_test_metrics.csv",
+    "reports/climate_sensitivity_validation_selected.csv",
 ]
 
 # SHAP tables for each crop (lag_only scenario, lightgbm & xgboost)
@@ -50,6 +53,18 @@ KPI_THRESHOLDS = {
     "Кукурудза": {"mae_max": 0.95, "mape_max": 14.0, "n_years": 3},
     "Пшениця": {"mae_max": 0.60, "mape_max": 12.0, "n_years": 3},
     "Соняшник": {"mae_max": 0.20, "mape_max": 7.0, "n_years": 3},
+}
+
+PUBLICATION_RMSE = {
+    "Кукурудза": {"ml": 0.807650, "baseline": 1.071374},
+    "Пшениця": {"ml": 0.712895, "baseline": 0.603816},
+    "Соняшник": {"ml": 0.050991, "baseline": 0.169210},
+}
+
+PUBLICATION_BASELINES = {
+    "Кукурудза": "forecast_linear",
+    "Пшениця": "forecast_linear",
+    "Соняшник": "arima",
 }
 
 
@@ -186,6 +201,27 @@ def check_kpi_metrics() -> List[str]:
     return errors
 
 
+def check_pooled_rmse() -> List[str]:
+    """Confirm publication-snapshot summaries use pooled squared errors."""
+    errors = []
+    leaderboard = pd.read_csv("reports/metrics_leaderboard.csv")
+    baselines = pd.read_csv("reports/metrics_baselines_summary.csv")
+    for crop, expected in PUBLICATION_RMSE.items():
+        ml = leaderboard[leaderboard["crop"] == crop]
+        baseline = baselines[
+            (baselines["crop"] == crop)
+            & (baselines["baseline"] == PUBLICATION_BASELINES[crop])
+        ]
+        if ml.empty or baseline.empty:
+            errors.append(f"{crop}: missing publication-snapshot RMSE row")
+            continue
+        if abs(float(ml.iloc[0]["rmse"]) - expected["ml"]) > 0.005:
+            errors.append(f"{crop}: unexpected ML pooled RMSE {float(ml.iloc[0]['rmse']):.6f}")
+        if abs(float(baseline.iloc[0]["rmse"]) - expected["baseline"]) > 0.005:
+            errors.append(f"{crop}: unexpected baseline pooled RMSE {float(baseline.iloc[0]['rmse']):.6f}")
+    return errors
+
+
 def main() -> int:
     """Run all QA checks."""
     print("=" * 70)
@@ -196,7 +232,7 @@ def main() -> int:
     all_errors: List[str] = []
 
     # Check 1: Required files
-    print("[1/5] Checking required files...")
+    print("[1/6] Checking required files...")
     errors = check_required_files()
     if errors:
         all_errors.extend(errors)
@@ -207,7 +243,7 @@ def main() -> int:
     print()
 
     # Check 2: SHAP tables
-    print("[2/5] Checking SHAP tables...")
+    print("[2/6] Checking SHAP tables...")
     errors = check_shap_tables()
     if errors:
         all_errors.extend(errors)
@@ -218,7 +254,7 @@ def main() -> int:
     print()
 
     # Check 3: ACF/PACF figures
-    print("[3/5] Checking ACF/PACF figures...")
+    print("[3/6] Checking ACF/PACF figures...")
     errors = check_acf_pacf_figures()
     if errors:
         all_errors.extend(errors)
@@ -229,7 +265,7 @@ def main() -> int:
     print()
 
     # Check 4: Correlation heatmaps
-    print("[4/5] Checking correlation heatmaps...")
+    print("[4/6] Checking correlation heatmaps...")
     errors = check_correlation_heatmaps()
     if errors:
         all_errors.extend(errors)
@@ -240,7 +276,7 @@ def main() -> int:
     print()
 
     # Check 5: KPI metrics
-    print("[5/5] Checking KPI metrics (test/lag_only)...")
+    print("[5/6] Checking KPI metrics (test/lag_only)...")
     errors = check_kpi_metrics()
     if errors:
         all_errors.extend(errors)
@@ -248,6 +284,16 @@ def main() -> int:
             print(f"  ❌ {error}")
     else:
         print("  ✅ All KPI metrics within thresholds")
+    print()
+
+    print("[6/6] Checking pooled publication-snapshot RMSE...")
+    errors = check_pooled_rmse()
+    if errors:
+        all_errors.extend(errors)
+        for error in errors:
+            print(f"  ❌ {error}")
+    else:
+        print("  ✅ Pooled RMSE matches the publication snapshot")
     print()
 
     # Summary

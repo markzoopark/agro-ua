@@ -449,19 +449,100 @@ def tune_model(
     return best_params, tuning_df
 
 
-def aggregate_predictions(predictions: pd.DataFrame, *, group_cols: Sequence[str]) -> pd.DataFrame:
+def aggregate_error_pairs(
+    predictions: pd.DataFrame,
+    *,
+    group_cols: Sequence[str],
+    actual_col: str,
+    predicted_col: str,
+) -> pd.DataFrame:
+    """Aggregate errors from pooled actual/predicted pairs within each group."""
     if predictions.empty:
         return pd.DataFrame()
-    grouped = (
-        predictions.groupby(list(group_cols), as_index=False)
-        .agg(
-            mae=("mae", "mean"),
-            rmse=("rmse", "mean"),
-            mape=("mape", "mean"),
-            n=("year", "count"),
+
+    rows: list[dict[str, object]] = []
+    grouper = list(group_cols)
+    for keys, group in predictions.groupby(grouper, dropna=False, sort=False):
+        key_values = keys if isinstance(keys, tuple) else (keys,)
+        actual = pd.to_numeric(group[actual_col], errors="coerce").to_numpy(dtype=float)
+        predicted = pd.to_numeric(group[predicted_col], errors="coerce").to_numpy(dtype=float)
+        valid = np.isfinite(actual) & np.isfinite(predicted)
+        if not valid.any():
+            continue
+        metrics = compute_metrics(actual[valid], predicted[valid])
+        rows.append(
+            {
+                **dict(zip(grouper, key_values)),
+                **metrics,
+                "n": int(valid.sum()),
+            }
         )
+    return pd.DataFrame(rows)
+
+
+def aggregate_predictions(predictions: pd.DataFrame, *, group_cols: Sequence[str]) -> pd.DataFrame:
+    return aggregate_error_pairs(
+        predictions,
+        group_cols=group_cols,
+        actual_col="actual",
+        predicted_col="predicted",
     )
-    return grouped
+
+
+def validation_selected_test_metrics(
+    predictions: pd.DataFrame,
+    *,
+    method_col: str,
+    actual_col: str,
+    predicted_col: str,
+    selection_group_cols: Sequence[str] = ("crop",),
+    split_col: str = "split",
+) -> pd.DataFrame:
+    """Select a method on validation only, then report its untouched test metrics."""
+    if predictions.empty:
+        return pd.DataFrame()
+
+    metric_groups = [*selection_group_cols, method_col]
+    validation = aggregate_error_pairs(
+        predictions[predictions[split_col] == "validation"],
+        group_cols=metric_groups,
+        actual_col=actual_col,
+        predicted_col=predicted_col,
+    )
+    test = aggregate_error_pairs(
+        predictions[predictions[split_col] == "test"],
+        group_cols=metric_groups,
+        actual_col=actual_col,
+        predicted_col=predicted_col,
+    )
+    if validation.empty or test.empty:
+        return pd.DataFrame()
+
+    sort_cols = [*selection_group_cols, "mae", "rmse", "mape", method_col]
+    selected = (
+        validation.sort_values(sort_cols)
+        .groupby(list(selection_group_cols), as_index=False, sort=False)
+        .first()
+    )
+    selected = selected.rename(
+        columns={
+            method_col: "selected_method",
+            "mae": "validation_mae",
+            "rmse": "validation_rmse",
+            "mape": "validation_mape",
+            "n": "validation_n",
+        }
+    )
+    test = test.rename(
+        columns={
+            method_col: "selected_method",
+            "mae": "test_mae",
+            "rmse": "test_rmse",
+            "mape": "test_mape",
+            "n": "test_n",
+        }
+    )
+    return selected.merge(test, on=[*selection_group_cols, "selected_method"], how="inner")
 
 
 def choose_best_by_crop(summary: pd.DataFrame) -> pd.DataFrame:

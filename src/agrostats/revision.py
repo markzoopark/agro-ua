@@ -13,11 +13,13 @@ from agrostats.modeling import (
     FEATURE_GROUPS,
     LAG_CONFIGS,
     TARGET_CROPS,
+    aggregate_error_pairs,
     aggregate_predictions,
     evaluate_expanding_window,
     get_years_for_window,
     prepare_crop_dataset,
     tune_model,
+    validation_selected_test_metrics,
 )
 
 
@@ -28,10 +30,13 @@ REPORTS_DIR = BASE_DIR / "reports"
 TUNED_PARAMS_PATH = REPORTS_DIR / "tuned_hyperparameters.csv"
 BASELINE_RESULTS_PATH = REPORTS_DIR / "metrics_baselines.csv"
 LEADERBOARD_PATH = REPORTS_DIR / "metrics_leaderboard.csv"
+PREDICTIONS_PATH = REPORTS_DIR / "predictions.csv"
 
 LAG_SENSITIVITY_PATH = REPORTS_DIR / "lag_sensitivity.csv"
 ROBUSTNESS_PATH = REPORTS_DIR / "robustness_2020_2024.csv"
 CLIMATE_SENSITIVITY_PATH = REPORTS_DIR / "climate_sensitivity.csv"
+CLIMATE_VALIDATION_SELECTED_PATH = REPORTS_DIR / "climate_sensitivity_validation_selected.csv"
+VALIDATION_SELECTED_TEST_PATH = REPORTS_DIR / "validation_selected_test_metrics.csv"
 VARIABLE_SUMMARY_PATH = REPORTS_DIR / "variable_summary.csv"
 MAIZE_DIAGNOSTICS_PATH = REPORTS_DIR / "maize_diagnostics.csv"
 
@@ -231,11 +236,13 @@ def run_robustness_window(features_with_climate: pd.DataFrame, tuned_df: pd.Data
 
         baseline_subset = baseline_df[(baseline_df["crop"] == crop) & (baseline_df["year"] >= 2020)]
         if not baseline_subset.empty:
-            baseline_summary = (
-                baseline_subset.groupby(["baseline", "crop"], as_index=False)
-                .agg(mae=("mae", "mean"), rmse=("rmse", "mean"), mape=("mape", "mean"), n=("year", "count"))
-                .sort_values(["mae", "rmse", "mape"])
+            baseline_summary = aggregate_error_pairs(
+                baseline_subset,
+                group_cols=["baseline", "crop"],
+                actual_col="y_true",
+                predicted_col="y_pred",
             )
+            baseline_summary = baseline_summary.sort_values(["mae", "rmse", "mape"])
             best_baseline = baseline_summary.iloc[0].to_dict()
             best_baseline["approach_type"] = "baseline"
             best_baseline["approach_name"] = best_baseline["baseline"]
@@ -243,77 +250,159 @@ def run_robustness_window(features_with_climate: pd.DataFrame, tuned_df: pd.Data
             rows.append(best_baseline)
 
     result = pd.DataFrame(rows)
+    if not result.empty:
+        result["analysis_role"] = "post_hoc_descriptive"
     result.to_csv(ROBUSTNESS_PATH, index=False)
     return result
 
 
-def run_climate_sensitivity(features_with_climate: pd.DataFrame) -> pd.DataFrame:
-    rows = []
+def _climate_candidates(features_with_climate: pd.DataFrame) -> pd.DataFrame:
+    rows: list[dict[str, object]] = []
     for crop in TARGET_CROPS:
         dataset = prepare_crop_dataset(features_with_climate, crop)
         if dataset is None:
             continue
 
-        base_candidates = []
-        climate_candidates = []
-        for model_name in MODELS:
-            base_params, base_tuning = tune_model(dataset, model_name=model_name, scenario="lag_only", lag_config="L1", include_climate=False)
-            if not base_tuning.empty:
-                base_eval = evaluate_expanding_window(
+        for include_climate in (False, True):
+            for model_name in MODELS:
+                params, tuning = tune_model(
                     dataset,
                     model_name=model_name,
                     scenario="lag_only",
-                    params=base_params,
-                    years=get_years_for_window("test"),
                     lag_config="L1",
-                    include_climate=False,
+                    include_climate=include_climate,
                 )
-                base_summary = aggregate_predictions(base_eval, group_cols=["crop", "model", "scenario", "lag_config"])
-                if not base_summary.empty:
-                    row = base_summary.iloc[0].to_dict()
-                    row["params_json"] = json.dumps(base_params, ensure_ascii=False)
-                    base_candidates.append(row)
-
-            climate_params, climate_tuning = tune_model(dataset, model_name=model_name, scenario="lag_only", lag_config="L1", include_climate=True)
-            if not climate_tuning.empty:
-                climate_eval = evaluate_expanding_window(
-                    dataset,
-                    model_name=model_name,
-                    scenario="lag_only",
-                    params=climate_params,
-                    years=get_years_for_window("test"),
-                    lag_config="L1",
-                    include_climate=True,
+                if tuning.empty:
+                    continue
+                evaluations = {}
+                for split in ("validation", "test"):
+                    evaluated = evaluate_expanding_window(
+                        dataset,
+                        model_name=model_name,
+                        scenario="lag_only",
+                        params=params,
+                        years=get_years_for_window(split),
+                        lag_config="L1",
+                        include_climate=include_climate,
+                    )
+                    summary = aggregate_predictions(
+                        evaluated,
+                        group_cols=["crop", "model", "scenario", "lag_config", "include_climate"],
+                    )
+                    if summary.empty:
+                        break
+                    evaluations[split] = summary.iloc[0]
+                if len(evaluations) != 2:
+                    continue
+                rows.append(
+                    {
+                        "crop": crop,
+                        "feature_set": "agro_climate" if include_climate else "agro_only",
+                        "model": model_name,
+                        "validation_mae": evaluations["validation"]["mae"],
+                        "validation_rmse": evaluations["validation"]["rmse"],
+                        "validation_mape": evaluations["validation"]["mape"],
+                        "validation_n": evaluations["validation"]["n"],
+                        "test_mae": evaluations["test"]["mae"],
+                        "test_rmse": evaluations["test"]["rmse"],
+                        "test_mape": evaluations["test"]["mape"],
+                        "test_n": evaluations["test"]["n"],
+                        "params_json": json.dumps(params, ensure_ascii=False),
+                    }
                 )
-                climate_summary = aggregate_predictions(climate_eval, group_cols=["crop", "model", "scenario", "lag_config", "include_climate"])
-                if not climate_summary.empty:
-                    row = climate_summary.iloc[0].to_dict()
-                    row["params_json"] = json.dumps(climate_params, ensure_ascii=False)
-                    climate_candidates.append(row)
+    return pd.DataFrame(rows)
 
-        if not base_candidates or not climate_candidates:
+
+def _format_climate_comparison(candidates: pd.DataFrame, *, select_on: str) -> pd.DataFrame:
+    rows = []
+    for crop in TARGET_CROPS:
+        crop_rows = candidates[candidates["crop"] == crop]
+        selected = {}
+        for feature_set in ("agro_only", "agro_climate"):
+            subset = crop_rows[crop_rows["feature_set"] == feature_set]
+            if subset.empty:
+                break
+            selected[feature_set] = subset.sort_values(
+                [f"{select_on}_mae", f"{select_on}_rmse", f"{select_on}_mape", "model"]
+            ).iloc[0]
+        if len(selected) != 2:
             continue
-
-        best_base = pd.DataFrame(base_candidates).sort_values(["mae", "rmse", "mape"]).iloc[0]
-        best_climate = pd.DataFrame(climate_candidates).sort_values(["mae", "rmse", "mape"]).iloc[0]
+        base = selected["agro_only"]
+        climate = selected["agro_climate"]
         rows.append(
             {
                 "crop": crop,
-                "window": "2022_2024",
-                "base_model": best_base["model"],
-                "base_mae": best_base["mae"],
-                "base_rmse": best_base["rmse"],
-                "base_mape": best_base["mape"],
-                "climate_model": best_climate["model"],
-                "climate_mae": best_climate["mae"],
-                "climate_rmse": best_climate["rmse"],
-                "climate_mape": best_climate["mape"],
-                "delta_mae": best_climate["mae"] - best_base["mae"],
+                "selection_window": "2019_2021" if select_on == "validation" else "2022_2024",
+                "evaluation_window": "2022_2024",
+                "base_model": base["model"],
+                "base_validation_mae": base["validation_mae"],
+                "base_test_mae": base["test_mae"],
+                "base_test_rmse": base["test_rmse"],
+                "base_test_mape": base["test_mape"],
+                "climate_model": climate["model"],
+                "climate_validation_mae": climate["validation_mae"],
+                "climate_test_mae": climate["test_mae"],
+                "climate_test_rmse": climate["test_rmse"],
+                "climate_test_mape": climate["test_mape"],
+                "delta_test_mae": climate["test_mae"] - base["test_mae"],
             }
         )
+    return pd.DataFrame(rows)
 
-    result = pd.DataFrame(rows)
-    result.to_csv(CLIMATE_SENSITIVITY_PATH, index=False)
+
+def run_climate_sensitivity(features_with_climate: pd.DataFrame) -> pd.DataFrame:
+    candidates = _climate_candidates(features_with_climate)
+    post_hoc = _format_climate_comparison(candidates, select_on="test")
+    if not post_hoc.empty:
+        post_hoc = post_hoc.rename(
+            columns={
+                "base_test_mae": "base_mae",
+                "base_test_rmse": "base_rmse",
+                "base_test_mape": "base_mape",
+                "climate_test_mae": "climate_mae",
+                "climate_test_rmse": "climate_rmse",
+                "climate_test_mape": "climate_mape",
+                "delta_test_mae": "delta_mae",
+            }
+        )
+        post_hoc["window"] = "2022_2024"
+        post_hoc["analysis_role"] = "post_hoc_descriptive_test_comparison"
+    post_hoc.to_csv(CLIMATE_SENSITIVITY_PATH, index=False)
+
+    strict = _format_climate_comparison(candidates, select_on="validation")
+    if not strict.empty:
+        strict["selection_policy"] = "model selected by 2019-2021 validation MAE; evaluated on 2022-2024 test"
+    strict.to_csv(CLIMATE_VALIDATION_SELECTED_PATH, index=False)
+    return post_hoc
+
+
+def run_validation_selected_test_metrics() -> pd.DataFrame:
+    ml_predictions = pd.read_csv(PREDICTIONS_PATH)
+    ml_predictions = ml_predictions[ml_predictions["scenario"] == "lag_only"].copy()
+    ml = validation_selected_test_metrics(
+        ml_predictions,
+        method_col="model",
+        actual_col="y_true",
+        predicted_col="y_pred",
+    )
+    if not ml.empty:
+        ml.insert(1, "method_family", "ml")
+
+    baseline_predictions = pd.read_csv(BASELINE_RESULTS_PATH)
+    baseline = validation_selected_test_metrics(
+        baseline_predictions,
+        method_col="baseline",
+        actual_col="y_true",
+        predicted_col="y_pred",
+    )
+    if not baseline.empty:
+        baseline.insert(1, "method_family", "baseline")
+
+    result = pd.concat([ml, baseline], ignore_index=True)
+    if not result.empty:
+        result["selection_policy"] = "selected by 2019-2021 validation MAE; evaluated on 2022-2024 test"
+        result = result.sort_values(["crop", "method_family"]).reset_index(drop=True)
+    result.to_csv(VALIDATION_SELECTED_TEST_PATH, index=False)
     return result
 
 
@@ -419,7 +508,7 @@ def run_maize_diagnostics(features_with_climate: pd.DataFrame, tuned_df: pd.Data
     return result
 
 
-def main() -> None:
+def main(*, include_post_hoc_robustness: bool = False) -> None:
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
     features_with_climate = load_features_with_climate()
     tuned_df = _read_tuned_params()
@@ -427,8 +516,10 @@ def main() -> None:
 
     build_variable_summary(features_with_climate)
     run_lag_sensitivity(features_with_climate)
-    run_robustness_window(features_with_climate, tuned_df, baseline_df)
+    if include_post_hoc_robustness:
+        run_robustness_window(features_with_climate, tuned_df, baseline_df)
     run_climate_sensitivity(features_with_climate)
+    run_validation_selected_test_metrics()
     run_maize_diagnostics(features_with_climate, tuned_df, baseline_df)
     print("Saved revision analysis artefacts to", REPORTS_DIR)
 

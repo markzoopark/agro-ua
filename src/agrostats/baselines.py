@@ -12,7 +12,7 @@ from sklearn.linear_model import LinearRegression
 from statsmodels.tsa.arima.model import ARIMA
 from statsmodels.tools.sm_exceptions import ConvergenceWarning
 
-from agrostats.modeling import TARGET_CROPS, compute_metrics
+from agrostats.modeling import TARGET_CROPS, aggregate_error_pairs, compute_metrics
 
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -171,14 +171,11 @@ def evaluate_baselines(features: pd.DataFrame) -> pd.DataFrame:
 
 
 def summarise_metrics(df: pd.DataFrame) -> pd.DataFrame:
-    return (
-        df[df["split"] == "test"]
-        .groupby(["baseline", "crop"], as_index=False)
-        .agg(
-            mae=("mae", "mean"),
-            rmse=("rmse", "mean"),
-            mape=("mape", "mean"),
-        )
+    return aggregate_error_pairs(
+        df[df["split"] == "test"],
+        group_cols=["baseline", "crop"],
+        actual_col="y_true",
+        predicted_col="y_pred",
     )
 
 

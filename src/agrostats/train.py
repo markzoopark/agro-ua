@@ -377,6 +377,8 @@ def poltava_command(
     console.print(f"[green]Scenario summary saved to {summary_path}[/green]")
 
     lag_only_summary = summary[summary["scenario"] == "lag_only"].copy()
+    # Publication snapshot: descriptive ranking by observed Test MAE among the
+    # pre-specified models. Prospective Validation selection is exported later.
     leaderboard = choose_best_by_crop(lag_only_summary)
     leaderboard_path = REPORTS_DIR / "metrics_leaderboard.csv"
     leaderboard.to_csv(leaderboard_path, index=False)

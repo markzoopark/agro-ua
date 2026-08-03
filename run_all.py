@@ -44,6 +44,7 @@ def pipeline(
     languages: str,
     run_baselines: bool,
     run_figures: bool,
+    include_post_hoc_robustness: bool = False,
 ) -> None:
     raw_dir = ensure_raw_dir(region)
     console.rule(f"[bold green]1. Loading CSVs from {raw_dir}")
@@ -80,7 +81,7 @@ def pipeline(
 
     if run_figures:
         console.rule("[bold green]7. Revision analyses")
-        revision.main()
+        revision.main(include_post_hoc_robustness=include_post_hoc_robustness)
 
         console.rule("[bold green]8. Publication-ready figures")
         article_figures.main()
@@ -113,6 +114,11 @@ def main(
         "--skip-figures",
         help="Skip regenerating publication figures (scripts/export_article_figures.py).",
     ),
+    include_post_hoc_robustness: bool = typer.Option(
+        False,
+        "--include-post-hoc-robustness",
+        help="Generate the descriptive 2020-2024 robustness report (not part of prospective validation).",
+    ),
 ) -> None:
     """Run the full pipeline (ingest → normalise → features → validate → models → reports)."""
     pipeline(
@@ -120,6 +126,7 @@ def main(
         languages=languages,
         run_baselines=not skip_baselines,
         run_figures=not skip_figures,
+        include_post_hoc_robustness=include_post_hoc_robustness,
     )
 
 
